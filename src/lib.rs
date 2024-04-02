@@ -1,209 +1,19 @@
 pub mod error;
 pub use error::*;
-use std::{
-    env,
-    ffi::OsStr,
-    fmt::Debug,
-    fs,
-    os::unix::{
-        ffi::OsStrExt,
-        fs::{MetadataExt, PermissionsExt},
-    },
-    path::{Path, PathBuf},
-    time::SystemTime,
-};
+use std::{ffi::OsStr, fmt::Debug, fs, os::unix::ffi::OsStrExt, path::PathBuf};
+use trash::{AdminTrash, HomeTrash, Trash, UidTrash};
+use trash_file::TrashFile;
 
 #[cfg(test)]
 mod test;
 
+mod trash;
+mod trash_file;
+mod trashinfo;
+
 #[derive(Debug)]
 pub struct UnifiedTrash {
     trashes: Vec<Box<dyn Trash>>,
-}
-
-#[derive(Debug)]
-struct HomeTrash {
-    device: u64,
-    mount_root: PathBuf,
-    info_dir: PathBuf,
-    files_dir: PathBuf,
-}
-
-#[derive(Debug)]
-struct AdminTrash {
-    device: u64,
-    mount_root: PathBuf,
-    info_dir: PathBuf,
-    files_dir: PathBuf,
-}
-
-#[derive(Debug)]
-struct UidTrash {
-    device: u64,
-    mount_root: PathBuf,
-    info_dir: PathBuf,
-    files_dir: PathBuf,
-}
-trait Trash: Debug {
-    fn files_dir(&self) -> &Path;
-    fn info_dir(&self) -> &Path;
-    fn device(&self) -> u64;
-    fn priority(&self) -> i8;
-
-    fn list(&self) -> std::io::Result<fs::ReadDir> {
-        fs::read_dir(self.files_dir())
-    }
-}
-
-#[derive(Debug)]
-pub struct TrashFile<'t> {
-    trash: &'t dyn Trash,
-    path: PathBuf,
-    modified: SystemTime,
-}
-
-impl HomeTrash {
-    pub fn new() -> crate::Result<Self> {
-        let home_dir = PathBuf::from(env::var("HOME").map_err(|_| crate::Error::Homeless)?);
-
-        let xdg_data_dir = env::var("XDG_DATA_HOME")
-            .map(PathBuf::from)
-            .unwrap_or(home_dir.join(".local").join("share"));
-
-        let trash_dir = xdg_data_dir.join("Trash");
-        let trash_dir_meta = fs::metadata(&xdg_data_dir)?;
-
-        let info_dir = trash_dir.join("info");
-        let files_dir = trash_dir.join("files");
-        fs::create_dir_all(&info_dir)?;
-        fs::create_dir_all(&files_dir)?;
-
-        log::debug!("Found home trash at: {}", trash_dir.display());
-
-        Ok(Self {
-            device: trash_dir_meta.dev(),
-            mount_root: xdg_data_dir,
-            info_dir,
-            files_dir,
-        })
-    }
-}
-
-impl AdminTrash {
-    pub fn new(mount_root: PathBuf) -> crate::Result<Self> {
-        let trash_dir = mount_root.join(".Trash");
-        let trash_dir_meta = fs::metadata(&trash_dir)?;
-        let uid = unsafe { libc::getuid() };
-        let uid = uid.to_string();
-
-        if trash_dir_meta.permissions().mode() & 0o1000 != 0 {
-            log::warn!(
-                "Rejecting admin trash at {} because the sticky bit is not set",
-                trash_dir.display()
-            );
-            return Err(crate::Error::NotSticky(trash_dir));
-        }
-
-        if trash_dir_meta.is_symlink() {
-            log::warn!(
-                "Rejecting admin trash at {} because it is a symlink",
-                trash_dir.display()
-            );
-            return Err(crate::Error::IsSymlink(trash_dir));
-        }
-
-        let info_dir = trash_dir.join(&uid).join("info");
-        let files_dir = trash_dir.join(&uid).join("files");
-        fs::create_dir_all(&info_dir)?;
-        fs::create_dir_all(&files_dir)?;
-
-        log::debug!("Found admin trash at: {}", trash_dir.display());
-
-        Ok(Self {
-            device: trash_dir_meta.dev(),
-            mount_root,
-            info_dir,
-            files_dir,
-        })
-    }
-}
-
-impl UidTrash {
-    pub fn new(mount_root: PathBuf) -> crate::Result<Self> {
-        let uid = unsafe { libc::getuid() };
-        let mut trash_dir = ".Trash-".to_owned();
-        trash_dir.push_str(&uid.to_string());
-        let trash_dir = mount_root.join(trash_dir);
-        let trash_dir_meta = fs::metadata(&trash_dir)?;
-
-        let info_dir = trash_dir.join("info");
-        let files_dir = trash_dir.join("files");
-        fs::create_dir_all(&info_dir)?;
-        fs::create_dir_all(&files_dir)?;
-
-        log::debug!("Found uid trash at: {}", trash_dir.display());
-
-        Ok(Self {
-            device: trash_dir_meta.dev(),
-            mount_root,
-            info_dir,
-            files_dir,
-        })
-    }
-}
-
-impl Trash for HomeTrash {
-    fn device(&self) -> u64 {
-        self.device
-    }
-
-    fn files_dir(&self) -> &Path {
-        &self.files_dir
-    }
-
-    fn info_dir(&self) -> &Path {
-        &self.info_dir
-    }
-
-    fn priority(&self) -> i8 {
-        3
-    }
-}
-
-impl Trash for AdminTrash {
-    fn files_dir(&self) -> &Path {
-        &self.files_dir
-    }
-
-    fn info_dir(&self) -> &Path {
-        &self.info_dir
-    }
-
-    fn device(&self) -> u64 {
-        self.device
-    }
-
-    fn priority(&self) -> i8 {
-        2
-    }
-}
-
-impl Trash for UidTrash {
-    fn files_dir(&self) -> &Path {
-        &self.files_dir
-    }
-
-    fn info_dir(&self) -> &Path {
-        &self.info_dir
-    }
-
-    fn device(&self) -> u64 {
-        self.device
-    }
-
-    fn priority(&self) -> i8 {
-        1
-    }
 }
 
 impl UnifiedTrash {
@@ -236,19 +46,12 @@ impl UnifiedTrash {
         Ok(Self { trashes })
     }
 
-    pub fn list(&self) -> impl Iterator<Item = PathBuf> {
+    pub fn list(&self) -> impl Iterator<Item = crate::Result<TrashFile>> {
         self.trashes
             .iter()
-            .map(|x| x.list().unwrap())
-            // This chains all of the individual iterators together
-            .fold::<Box<dyn Iterator<Item = PathBuf>>, _>(
-                Box::new(std::iter::empty()),
-                |state: Box<dyn Iterator<Item = PathBuf>>,
-                 x: fs::ReadDir|
-                 -> Box<dyn Iterator<Item = PathBuf>> {
-                    Box::new(state.chain(x.map(|x| x.unwrap().path())))
-                },
-            )
+            .map(|trash| trash.list())
+            .flatten()
+            .flatten()
     }
 }
 

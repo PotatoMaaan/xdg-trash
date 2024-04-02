@@ -7,6 +7,7 @@ fn test_list() {
 
     let x = trash
         .list()
-        .inspect(|x| println!("{}", x.display()))
+        .map(|x| x.unwrap())
+        .inspect(|x| println!("{:#?}", x))
         .collect::<Vec<_>>();
 }

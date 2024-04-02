@@ -12,7 +12,7 @@ pub enum Error {
     IoError(#[from] io::Error),
 
     /** Failed to determine the home trash */
-    FailedToFindHomeTrash(#[source] Box<Error>),
+    FailedToFindHomeTrash(#[source] Box<Self>),
 
     /** The trash at {0} is invalid because the sticky bit not set */
     NotSticky(PathBuf),
@@ -22,6 +22,27 @@ pub enum Error {
 
     /** The /proc/mounts file was in an unexpected format */
     InvalidProcMounts,
+
+    /** The first line was invalid */
+    InvalidFirstLine,
+
+    /** The key/value pairs were invalid */
+    InvalidKeyValues,
+
+    /** The key {0} was not found */
+    MissingKey(&'static str),
+
+    /** The datetime was invalid: {0} */
+    InvalidDateTime(#[from] chrono::ParseError),
+
+    /** None of the available parsers matched the datetime: [errors:?] */
+    InvalidDateTimeNoParserMatched { errors: Vec<chrono::ParseError> },
+
+    /** The trashinfo file at {0} is invalid */
+    InvalidTrashinfoFile(PathBuf, #[source] Box<Self>),
+
+    /** The file {0} does not have a file stem even though it should */
+    HasNoFileStem(PathBuf),
 }
 
 pub type Result<T> = core::result::Result<T, Error>;
