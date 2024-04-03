@@ -1,6 +1,5 @@
-use std::{io, path::PathBuf};
-
 use displaydoc::Display;
+use std::{io, path::PathBuf};
 use thiserror::Error;
 
 #[derive(Debug, Display, Error)]
@@ -20,7 +19,7 @@ pub enum Error {
     /** The trash at {0} is invalid because it is a symlink */
     IsSymlink(PathBuf),
 
-    /** The /proc/mounts file was in an unexpected format */
+    /** The /proc/mounts file was not found or in an unexpected format */
     InvalidProcMounts,
 
     /** The first line was invalid */
@@ -43,6 +42,12 @@ pub enum Error {
 
     /** The file {0} does not have a file stem even though it should */
     HasNoFileStem(PathBuf),
+
+    /** The trashinfo file has no corresponding actual file */
+    OrphanedTrashinfoFile,
+
+    /** The trashinfo file did not have a .trashinfo extension */
+    InvalidTrashinfoExt,
 }
 
 pub type Result<T> = core::result::Result<T, Error>;

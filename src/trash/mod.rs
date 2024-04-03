@@ -10,14 +10,21 @@ pub use home_trash::HomeTrash;
 pub use uid_trash::UidTrash;
 
 pub trait Trash: Debug {
+    /// The directory where trashed files are moved to
     fn files_dir(&self) -> &Path;
+    /// The directory where .trashinfo files reside
     fn info_dir(&self) -> &Path;
+    /// The device on which the trashcan resides
     fn device(&self) -> u64;
+    /// The priority this trashcan should have over others (higher number is more)
     fn priority(&self) -> i8;
+    /// The path on which relative paths in the .trashinfo file are based on
     fn mount_root(&self) -> &Path;
-    /// Workaround for some dyn shenanigans (https://stackoverflow.com/a/61654763)
+
+    /// Workaround for some dyn shenanigans (<https://stackoverflow.com/a/61654763>)
     fn as_dyn(&self) -> &dyn Trash;
 
+    /// Returns an iterator over all trashed files in this trashcan
     fn list(&self) -> crate::Result<Box<dyn Iterator<Item = crate::Result<TrashFile>> + '_>> {
         let info_files = fs::read_dir(self.info_dir())?;
 

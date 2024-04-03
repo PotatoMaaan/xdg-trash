@@ -1,15 +1,15 @@
+use crate::{trash::Trash, trashinfo::TrashInfo};
 use std::{
-    ffi::OsString,
+    ffi::{OsStr, OsString},
     fs,
     path::{Path, PathBuf},
 };
-
-use crate::{trash::Trash, trashinfo::TrashInfo};
 
 #[derive(Debug)]
 pub struct TrashFile<'t> {
     trash: &'t dyn Trash,
     trashinfo: TrashInfo,
+    /// Filename in files WITHOUT .trashinfo ext
     raw_filename: OsString,
 }
 
@@ -21,28 +21,36 @@ impl<'t> TrashFile<'t> {
                 Box::new(crate::Error::IoError(e)),
             )
         })?;
-        Self::from_trashinfo_file(
-            &info_file,
-            info_file_path
-                .file_stem()
-                .ok_or(crate::Error::HasNoFileStem(info_file_path.to_owned()))?
-                .to_owned(),
-            trash,
-        )
-        .map_err(|e| crate::Error::InvalidTrashinfoFile(info_file_path.to_owned(), Box::new(e)))
+        Self::from_trashinfo_file(&info_file, info_file_path, trash)
+            .map_err(|e| crate::Error::InvalidTrashinfoFile(info_file_path.to_owned(), Box::new(e)))
     }
 
+    /// This function has this weird signature to make it testable without mocking a filesystem
     fn from_trashinfo_file(
         info_file: &str,
-        info_file_name: OsString,
+        info_file_path: &Path,
         trash: &'t dyn Trash,
     ) -> crate::Result<Self> {
+        if info_file_path.extension() != Some(OsStr::new("trashinfo")) {
+            return Err(crate::Error::InvalidTrashinfoExt);
+        }
+
         let trashinfo = info_file.parse::<TrashInfo>()?;
+
+        let without_trashinfo_ext = info_file_path
+            .file_stem()
+            .ok_or(crate::Error::HasNoFileStem(info_file_path.to_owned()))?
+            .to_owned();
+
+        if !trash.files_dir().join(&without_trashinfo_ext).exists() {
+            log::warn!("Orphaned trashinfo file: {}", info_file_path.display());
+            return Err(crate::Error::OrphanedTrashinfoFile);
+        }
 
         Ok(Self {
             trash,
             trashinfo,
-            raw_filename: info_file_name,
+            raw_filename: without_trashinfo_ext,
         })
     }
 
@@ -54,13 +62,13 @@ impl<'t> TrashFile<'t> {
         }
     }
 
-    pub fn files_path(&self) -> PathBuf {
-        self.files_path().join(&self.raw_filename)
+    pub fn files_filepath(&self) -> PathBuf {
+        self.trash.files_dir().join(&self.raw_filename)
     }
 
-    pub fn info_path(&self) -> PathBuf {
+    pub fn info_filepath(&self) -> PathBuf {
         let mut base_filename = self.raw_filename.clone();
         base_filename.push(".trashinfo");
-        self.info_path().join(base_filename)
+        self.trash.info_dir().join(base_filename)
     }
 }
