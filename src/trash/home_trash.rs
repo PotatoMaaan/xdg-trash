@@ -13,8 +13,8 @@ pub struct HomeTrash {
     files_dir: PathBuf,
 }
 
-impl HomeTrash {
-    pub fn new() -> crate::Result<Self> {
+impl Trash {
+    pub fn find_home_trash() -> crate::Result<Self> {
         let home_dir = PathBuf::from(env::var("HOME").map_err(|_| crate::Error::Homeless)?);
 
         let xdg_data_dir = env::var("XDG_DATA_HOME")
@@ -36,32 +36,8 @@ impl HomeTrash {
             mount_root: xdg_data_dir,
             info_dir,
             files_dir,
+            priority: 3,
+            use_relative_path: false,
         })
-    }
-}
-
-impl Trash for HomeTrash {
-    fn device(&self) -> u64 {
-        self.device
-    }
-
-    fn files_dir(&self) -> &Path {
-        &self.files_dir
-    }
-
-    fn info_dir(&self) -> &Path {
-        &self.info_dir
-    }
-
-    fn priority(&self) -> i8 {
-        3
-    }
-
-    fn mount_root(&self) -> &Path {
-        &self.mount_root
-    }
-
-    fn as_dyn(&self) -> &dyn Trash {
-        self
     }
 }

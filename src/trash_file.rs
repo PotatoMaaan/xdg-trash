@@ -3,18 +3,31 @@ use std::{
     ffi::{OsStr, OsString},
     fs,
     path::{Path, PathBuf},
+    rc::Rc,
 };
 
 #[derive(Debug)]
-pub struct TrashFile<'t> {
-    trash: &'t dyn Trash,
+pub struct TrashFile {
+    trash: Rc<Trash>,
     trashinfo: TrashInfo,
     /// Filename in files WITHOUT .trashinfo ext
     raw_filename: OsString,
 }
 
-impl<'t> TrashFile<'t> {
-    pub fn from_trashinfo_path(info_file_path: &Path, trash: &'t dyn Trash) -> crate::Result<Self> {
+impl TrashFile {
+    pub(crate) fn new_unchecked(
+        trash: Rc<Trash>,
+        trashinfo: TrashInfo,
+        raw_filename: OsString,
+    ) -> Self {
+        Self {
+            trash,
+            trashinfo,
+            raw_filename,
+        }
+    }
+
+    pub fn from_trashinfo_path(info_file_path: &Path, trash: Rc<Trash>) -> crate::Result<Self> {
         let info_file = fs::read_to_string(info_file_path).map_err(|e| {
             crate::Error::InvalidTrashinfoFile(
                 info_file_path.to_owned(),
@@ -29,7 +42,7 @@ impl<'t> TrashFile<'t> {
     fn from_trashinfo_file(
         info_file: &str,
         info_file_path: &Path,
-        trash: &'t dyn Trash,
+        trash: Rc<Trash>,
     ) -> crate::Result<Self> {
         if info_file_path.extension() != Some(OsStr::new("trashinfo")) {
             return Err(crate::Error::InvalidTrashinfoExt);

@@ -2,19 +2,11 @@ use super::Trash;
 use std::{
     fs,
     os::unix::fs::{MetadataExt, PermissionsExt},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
-#[derive(Debug)]
-pub struct AdminTrash {
-    device: u64,
-    mount_root: PathBuf,
-    info_dir: PathBuf,
-    files_dir: PathBuf,
-}
-
-impl AdminTrash {
-    pub fn new(mount_root: PathBuf) -> crate::Result<Self> {
+impl Trash {
+    pub fn find_admin_trash(mount_root: PathBuf) -> crate::Result<Self> {
         let trash_dir = mount_root.join(".Trash");
         let trash_dir_meta = fs::metadata(&trash_dir)?;
         let uid = unsafe { libc::getuid() };
@@ -48,32 +40,8 @@ impl AdminTrash {
             mount_root,
             info_dir,
             files_dir,
+            priority: 2,
+            use_relative_path: true,
         })
-    }
-}
-
-impl Trash for AdminTrash {
-    fn files_dir(&self) -> &Path {
-        &self.files_dir
-    }
-
-    fn info_dir(&self) -> &Path {
-        &self.info_dir
-    }
-
-    fn device(&self) -> u64 {
-        self.device
-    }
-
-    fn priority(&self) -> i8 {
-        2
-    }
-
-    fn mount_root(&self) -> &Path {
-        &self.mount_root
-    }
-
-    fn as_dyn(&self) -> &dyn Trash {
-        self
     }
 }

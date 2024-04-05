@@ -1,7 +1,14 @@
 pub mod error;
 pub use error::*;
-use std::{ffi::OsStr, fmt::Debug, fs, os::unix::ffi::OsStrExt, path::PathBuf};
-use trash::{AdminTrash, HomeTrash, UidTrash};
+use std::{
+    ffi::OsStr,
+    fmt::Debug,
+    fs,
+    os::unix::{ffi::OsStrExt, fs::MetadataExt},
+    path::{Component, Path, PathBuf},
+    rc::Rc,
+};
+use trash::Trash;
 use trash_file::TrashFile;
 
 #[cfg(test)]
@@ -11,72 +18,103 @@ mod trash;
 mod trash_file;
 mod trashinfo;
 
-pub use trash::Trash;
-
 #[derive(Debug)]
 pub struct UnifiedTrash {
-    trashes: Vec<Box<dyn Trash>>,
+    trashes: Vec<Rc<Trash>>,
 }
 
 impl UnifiedTrash {
     /// Attempt to create a unified trash with all trashcans found in the system.
     pub fn new() -> crate::Result<Self> {
-        let mut trashes = list_trashes()?.collect::<Vec<_>>();
-        sort_trashes(&mut trashes);
-
-        Ok(Self { trashes })
+        let trashes = list_trashes()?.collect::<Vec<_>>();
+        Ok(Self::new_with_trashcans(trashes))
     }
 
     /// Create a new unified trash with a custom selection of trashcans.
     /// An iterator over all trashcans can be obtained by the [`list_trashes`] function.
-    pub fn new_with_trashcans(mut trashes: Vec<Box<dyn Trash>>) -> Self {
+    pub fn new_with_trashcans(mut trashes: Vec<Rc<Trash>>) -> Self {
         sort_trashes(&mut trashes);
         Self { trashes }
     }
 
     /// Returns an iterator over all files in all trashcans
-    pub fn list(&self) -> impl Iterator<Item = crate::Result<TrashFile>> {
+    pub fn list(&self) -> impl Iterator<Item = crate::Result<TrashFile>> + '_ {
         self.trashes
             .iter()
-            .map(|trash| trash.list())
+            .map(|trash| trash.clone().list())
             .flatten()
             .flatten()
     }
+
+    /// Attempts to trash the file into one of the known trashes, attempting to create
+    /// a new trashcan if one doesn't exists on the device.
+    pub fn put(&mut self, input_path: impl AsRef<Path>) -> crate::Result<TrashFile> {
+        let input_path = input_path.as_ref();
+        let input_path_meta = fs::symlink_metadata(input_path).map_err(|e| {
+            crate::Error::FailedToTrashFile(
+                input_path.to_owned(),
+                Box::new(crate::Error::IoError(e)),
+            )
+        })?;
+
+        if let Some(trash_on_same_dev) = self
+            .trashes
+            .iter()
+            .find(|trash| trash.device() == input_path_meta.dev())
+        {
+            return trash_on_same_dev.clone().put(input_path);
+        }
+
+        let mount_root = find_mount_root(&input_path)
+            .map_err(|e| crate::Error::FailedToCreateTrash(input_path.to_owned(), Box::new(e)))?;
+        let new_trash = Trash::create_user_trash(mount_root)
+            .map_err(|e| crate::Error::FailedToCreateTrash(input_path.to_owned(), Box::new(e)))?;
+
+        /*
+        We can push this into the trashes without re-sorting because user trashes
+        have the lowest priority, so it would end up somewhere at the end of the
+        list even if we sorted.
+        */
+
+        self.trashes.push(Rc::new(new_trash));
+        self.trashes.last().unwrap().clone().put(input_path)
+    }
 }
+
 /// Returns an iterator over all trashes available on the system
-pub fn list_trashes() -> crate::Result<Box<dyn Iterator<Item = Box<dyn Trash>>>> {
+pub fn list_trashes() -> crate::Result<Box<dyn Iterator<Item = Rc<Trash>>>> {
     let home_trash =
-        HomeTrash::new().map_err(|e| crate::Error::FailedToFindHomeTrash(Box::new(e)))?;
+        Trash::find_home_trash().map_err(|e| crate::Error::FailedToFindHomeTrash(Box::new(e)))?;
 
     let mounts_iter = list_mounts()?
         .into_iter()
-        .map(|mount| -> Option<Box<dyn Trash>> {
-            let admin_trash = AdminTrash::new(mount.clone());
-            let uid_trash = UidTrash::new(mount);
+        .map(|mount| -> Option<Rc<Trash>> {
+            let admin_trash = Trash::find_admin_trash(mount.clone());
+            let user_trash = Trash::find_user_trash(mount);
 
             if let Ok(t) = admin_trash {
-                return Some(Box::new(t));
+                return Some(Rc::new(t));
             }
-            if let Ok(t) = uid_trash {
-                return Some(Box::new(t));
+            if let Ok(t) = user_trash {
+                return Some(Rc::new(t));
             }
 
             None
         })
         .flatten();
 
-    let mounts: Box<dyn Iterator<Item = Box<dyn Trash>>> = Box::new(mounts_iter);
-    let home_iter: Box<dyn Iterator<Item = Box<dyn Trash>>> = Box::new(
+    let mounts: Box<dyn Iterator<Item = Rc<Trash>>> = Box::new(mounts_iter);
+    let home_iter: Box<dyn Iterator<Item = Rc<Trash>>> = Box::new(
         ([home_trash])
             .into_iter()
-            .map(|x| -> Box<dyn Trash> { Box::new(x) }),
+            .map(|x| -> Rc<Trash> { Rc::new(x) }),
     );
 
     Ok(Box::new(home_iter.chain(mounts)))
 }
 
-/// Sort trashes by their priority such that admin trashes will always be before uid trashes
-fn sort_trashes(trashes: &mut Vec<Box<dyn Trash>>) {
+/// Sort trashes by their priority such that admin trashes will always be before user trashes
+fn sort_trashes(trashes: &mut Vec<Rc<Trash>>) {
     trashes.sort_by_key(|x| x.priority() * -1);
 }
 
@@ -91,4 +129,44 @@ fn list_mounts() -> crate::Result<Vec<PathBuf>> {
         .map(|x| x.map(OsStr::from_bytes))
         .map(|x| x.map(PathBuf::from).ok_or(crate::Error::InvalidProcMounts))
         .collect()
+}
+
+/// like fs::canonicalize but doesn't follow symlinks and doesn't check if the file exists.
+///
+/// Credit: <https://internals.rust-lang.org/t/path-to-lexical-absolute/14940>
+fn lexical_absolute(p: &Path) -> std::io::Result<PathBuf> {
+    let mut absolute = if p.is_absolute() {
+        PathBuf::new()
+    } else {
+        std::env::current_dir()?
+    };
+    for component in p.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                absolute.pop();
+            }
+            component => absolute.push(component.as_os_str()),
+        }
+    }
+    Ok(absolute)
+}
+
+/// Finds the mount point of the filesystem on which the path resides
+pub fn find_mount_root(path: &Path) -> crate::Result<PathBuf> {
+    let path = path.canonicalize()?;
+    let root_dev = fs::metadata(&path)?.dev();
+    path.ancestors()
+        .map(|p| (p, fs::metadata(p)))
+        .map(|(p, x)| (p, x.map(|x| x.dev())))
+        .take_while(|(_, x)| x.as_ref().ok() == Some(&root_dev))
+        .map(|(p, x)| x.map(|_| p))
+        .map(|x| x.map_err(|e| crate::Error::IoError(e)))
+        .inspect(|x| println!("{:?}", x))
+        .collect()
+}
+
+#[test]
+fn dfgd() {
+    find_mount_root(Path::new("/home/potato/mount/media/spoger/hoger")).unwrap();
 }

@@ -1,5 +1,8 @@
 use chrono::NaiveDateTime;
-use std::{collections::HashMap, ffi::OsStr, os::unix::ffi::OsStrExt, path::PathBuf, str::FromStr};
+use std::{
+    collections::HashMap, ffi::OsStr, io::Write, os::unix::ffi::OsStrExt, path::PathBuf,
+    str::FromStr,
+};
 
 #[derive(Debug)]
 /// 1:1 representation of a .trashinfo file.
@@ -47,6 +50,24 @@ impl FromStr for TrashInfo {
             .map_err(|e| crate::Error::InvalidDateTimeNoParserMatched { errors: e })?;
 
         Ok(Self { path, deleted_at })
+    }
+}
+
+impl TrashInfo {
+    fn create_trashinfofile(&self) -> String {
+        let encoded = urlencoding::encode_binary(self.path.as_os_str().as_bytes());
+        format!(
+            "[Trash Info]\nPath={}\nDeletionDate={}",
+            encoded,
+            // The same format that nautilus and dolphin use. The spec claims rfc3339, but that doesn't work out at all...
+            self.deleted_at.format("%Y-%m-%dT%H:%M:%S")
+        )
+    }
+
+    pub fn write_to(&self, mut w: impl Write) -> crate::Result<()> {
+        let file = self.create_trashinfofile();
+        w.write_all(file.as_bytes())
+            .map_err(|e| crate::Error::IoError(e))
     }
 }
 

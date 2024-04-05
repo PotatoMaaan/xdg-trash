@@ -48,6 +48,24 @@ pub enum Error {
 
     /** The trashinfo file did not have a .trashinfo extension */
     InvalidTrashinfoExt,
+
+    /** Can only trash file from the same physical device */
+    DifferentDevice,
+
+    /** Failed to trash file {0}: {1} */
+    FailedToTrashFile(PathBuf, #[source] Box<Self>),
+
+    /** The path has no filename */
+    HasNoFilename,
+
+    /** The file was not a child component of the trash mount root (should not happen): {0} */
+    InputNotChildOfTrashMount(#[source] std::path::StripPrefixError),
+
+    /** Failed to move file: {0} */
+    FailedToMoveFile(std::io::Error),
+
+    /** Failed to create a new trashcan at {0} */
+    FailedToCreateTrash(PathBuf, #[source] Box<Self>),
 }
 
 pub type Result<T> = core::result::Result<T, Error>;
