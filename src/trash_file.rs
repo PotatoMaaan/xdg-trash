@@ -38,7 +38,7 @@ impl TrashFile {
             .map_err(|e| crate::Error::InvalidTrashinfoFile(info_file_path.to_owned(), Box::new(e)))
     }
 
-    /// This function has this weird signature to make it testable without mocking a filesystem
+    /// This function has this a signature to make it testable without mocking a filesystem
     fn from_trashinfo_file(
         info_file: &str,
         info_file_path: &Path,
@@ -67,6 +67,7 @@ impl TrashFile {
         })
     }
 
+    /// The location this entry will be moved to when restored
     pub fn original_path(&self) -> PathBuf {
         if self.trashinfo.path.is_relative() {
             self.trash.mount_root().join(&self.trashinfo.path)
@@ -75,13 +76,36 @@ impl TrashFile {
         }
     }
 
+    /// Full path to this entrys entry in the files directory
     pub fn files_filepath(&self) -> PathBuf {
         self.trash.files_dir().join(&self.raw_filename)
     }
 
+    /// Full path to this trash entrys .trashinfo file
     pub fn info_filepath(&self) -> PathBuf {
         let mut base_filename = self.raw_filename.clone();
         base_filename.push(".trashinfo");
         self.trash.info_dir().join(base_filename)
+    }
+
+    /// Permanently remove this file from the trash
+    pub fn remove(self) -> crate::Result<()> {
+        fs::remove_file(self.info_filepath())?;
+        let file = self.files_filepath();
+        let file_meta = fs::metadata(&file)?;
+        if file_meta.is_dir() {
+            fs::remove_dir_all(&file)?;
+        } else {
+            fs::remove_file(file)?;
+        }
+        Ok(())
+    }
+
+    /// Restore the file to it's original location
+    pub fn restore(self) -> crate::Result<PathBuf> {
+        let removed_path = self.original_path();
+        fs::rename(self.files_filepath(), &removed_path)?;
+        fs::remove_file(self.info_filepath())?;
+        Ok(removed_path)
     }
 }

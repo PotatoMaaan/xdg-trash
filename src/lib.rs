@@ -1,5 +1,3 @@
-pub mod error;
-pub use error::*;
 use std::{
     ffi::OsStr,
     fmt::Debug,
@@ -8,11 +6,15 @@ use std::{
     path::{Component, Path, PathBuf},
     rc::Rc,
 };
-use trash::Trash;
 use trash_file::TrashFile;
 
 #[cfg(test)]
 mod test;
+
+pub use error::*;
+pub use trash::Trash;
+
+pub mod error;
 
 mod trash;
 mod trash_file;
@@ -46,8 +48,10 @@ impl UnifiedTrash {
             .flatten()
     }
 
-    /// Attempts to trash the file into one of the known trashes, attempting to create
-    /// a new trashcan if one doesn't exists on the device.
+    /**
+     * Attempts to trash the file into one of the known trashes, attempting to create
+     * a new trashcan if one doesn't exists on the device.
+     */
     pub fn put(&mut self, input_path: impl AsRef<Path>) -> crate::Result<TrashFile> {
         let input_path = input_path.as_ref();
         let input_path_meta = fs::symlink_metadata(input_path).map_err(|e| {
@@ -57,32 +61,48 @@ impl UnifiedTrash {
             )
         })?;
 
-        if let Some(trash_on_same_dev) = self
+        let trash = if let Some(trash_on_same_dev) = self
             .trashes
             .iter()
             .find(|trash| trash.device() == input_path_meta.dev())
         {
-            return trash_on_same_dev.clone().put(input_path);
-        }
+            trash_on_same_dev.clone()
+        } else {
+            let mount_root = find_mount_root(&input_path).map_err(|e| {
+                crate::Error::FailedToCreateTrash(input_path.to_owned(), Box::new(e))
+            })?;
+            let new_trash = Rc::new(Trash::create_user_trash(mount_root).map_err(|e| {
+                crate::Error::FailedToCreateTrash(input_path.to_owned(), Box::new(e))
+            })?);
 
-        let mount_root = find_mount_root(&input_path)
-            .map_err(|e| crate::Error::FailedToCreateTrash(input_path.to_owned(), Box::new(e)))?;
-        let new_trash = Trash::create_user_trash(mount_root)
-            .map_err(|e| crate::Error::FailedToCreateTrash(input_path.to_owned(), Box::new(e)))?;
+            /*
+             * We can push this into the trashes without re-sorting because user trashes
+             * have the lowest priority, so it would end up somewhere at the end of the
+             * list even if we sorted.
+             */
+            self.trashes.push(new_trash.clone());
+            new_trash
+        };
 
-        /*
-        We can push this into the trashes without re-sorting because user trashes
-        have the lowest priority, so it would end up somewhere at the end of the
-        list even if we sorted.
-        */
+        trash.put(input_path)
+    }
 
-        self.trashes.push(Rc::new(new_trash));
-        self.trashes.last().unwrap().clone().put(input_path)
+    /**
+     * Attempts to delete all trashed files, returning an iterator over
+     * the path of the deleted file or an error.
+     */
+    pub fn empty(&self) -> crate::Result<impl Iterator<Item = crate::Result<PathBuf>> + '_> {
+        Ok(self
+            .trashes
+            .iter()
+            .map(|trash| trash.empty())
+            .flatten()
+            .flatten())
     }
 }
 
 /// Returns an iterator over all trashes available on the system
-pub fn list_trashes() -> crate::Result<Box<dyn Iterator<Item = Rc<Trash>>>> {
+pub fn list_trashes() -> crate::Result<impl Iterator<Item = Rc<Trash>>> {
     let home_trash =
         Trash::find_home_trash().map_err(|e| crate::Error::FailedToFindHomeTrash(Box::new(e)))?;
 
@@ -92,25 +112,11 @@ pub fn list_trashes() -> crate::Result<Box<dyn Iterator<Item = Rc<Trash>>>> {
             let admin_trash = Trash::find_admin_trash(mount.clone());
             let user_trash = Trash::find_user_trash(mount);
 
-            if let Ok(t) = admin_trash {
-                return Some(Rc::new(t));
-            }
-            if let Ok(t) = user_trash {
-                return Some(Rc::new(t));
-            }
-
-            None
+            admin_trash.ok().or(user_trash.ok()).map(Rc::new)
         })
         .flatten();
 
-    let mounts: Box<dyn Iterator<Item = Rc<Trash>>> = Box::new(mounts_iter);
-    let home_iter: Box<dyn Iterator<Item = Rc<Trash>>> = Box::new(
-        ([home_trash])
-            .into_iter()
-            .map(|x| -> Rc<Trash> { Rc::new(x) }),
-    );
-
-    Ok(Box::new(home_iter.chain(mounts)))
+    Ok(mounts_iter.chain([Rc::new(home_trash)].into_iter()))
 }
 
 /// Sort trashes by their priority such that admin trashes will always be before user trashes
@@ -153,7 +159,7 @@ fn lexical_absolute(p: &Path) -> std::io::Result<PathBuf> {
 }
 
 /// Finds the mount point of the filesystem on which the path resides
-pub fn find_mount_root(path: &Path) -> crate::Result<PathBuf> {
+fn find_mount_root(path: &Path) -> crate::Result<PathBuf> {
     let path = path.canonicalize()?;
     let root_dev = fs::metadata(&path)?.dev();
     path.ancestors()
@@ -164,9 +170,4 @@ pub fn find_mount_root(path: &Path) -> crate::Result<PathBuf> {
         .map(|x| x.map_err(|e| crate::Error::IoError(e)))
         .inspect(|x| println!("{:?}", x))
         .collect()
-}
-
-#[test]
-fn dfgd() {
-    find_mount_root(Path::new("/home/potato/mount/media/spoger/hoger")).unwrap();
 }

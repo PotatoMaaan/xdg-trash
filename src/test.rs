@@ -1,4 +1,6 @@
-use crate::{list_trashes, UnifiedTrash};
+use std::{path::PathBuf, rc::Rc};
+
+use crate::{list_trashes, trash, UnifiedTrash};
 
 // #[test]
 // fn test_list() {
@@ -22,6 +24,8 @@ use crate::{list_trashes, UnifiedTrash};
 fn test_put() {
     microlog::init(log::LevelFilter::Trace);
 
-    let mut trash = UnifiedTrash::new().unwrap();
-    trash.put("/home/potato/Downloads/spooger.txt").unwrap();
+    let t = trash::Trash::find_user_trash(PathBuf::from("/home/potato/mount/storage")).unwrap();
+    Rc::new(t).list().unwrap().for_each(|x| {
+        dbg!(&x);
+    });
 }

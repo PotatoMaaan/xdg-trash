@@ -5,14 +5,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[derive(Debug)]
-pub struct UserTrash {
-    device: u64,
-    mount_root: PathBuf,
-    info_dir: PathBuf,
-    files_dir: PathBuf,
-}
-
 impl Trash {
     pub fn find_user_trash(mount_root: PathBuf) -> crate::Result<Self> {
         let trash_dir = get_trash_dir(&mount_root);

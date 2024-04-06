@@ -1,17 +1,5 @@
 use super::Trash;
-use std::{
-    env, fs,
-    os::unix::fs::MetadataExt,
-    path::{Path, PathBuf},
-};
-
-#[derive(Debug)]
-pub struct HomeTrash {
-    device: u64,
-    mount_root: PathBuf,
-    info_dir: PathBuf,
-    files_dir: PathBuf,
-}
+use std::{env, fs, os::unix::fs::MetadataExt, path::PathBuf};
 
 impl Trash {
     pub fn find_home_trash() -> crate::Result<Self> {
