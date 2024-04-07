@@ -10,7 +10,7 @@ use std::{
 pub struct TrashFile {
     trash: Rc<Trash>,
     trashinfo: TrashInfo,
-    /// Filename in files WITHOUT .trashinfo ext
+    /// Filename WITHOUT .trashinfo ext
     raw_filename: OsString,
 }
 
@@ -90,7 +90,6 @@ impl TrashFile {
 
     /// Permanently remove this file from the trash
     pub fn remove(self) -> crate::Result<()> {
-        fs::remove_file(self.info_filepath())?;
         let file = self.files_filepath();
         let file_meta = fs::metadata(&file)?;
         if file_meta.is_dir() {
@@ -98,14 +97,22 @@ impl TrashFile {
         } else {
             fs::remove_file(file)?;
         }
+        fs::remove_file(self.info_filepath())?;
         Ok(())
     }
 
-    /// Restore the file to it's original location
+    /// Restores the file to it's original location, creating all parent
+    /// directories of the file if they don't exist anymore.
+    ///
+    /// Returns the location the file was restored to
     pub fn restore(self) -> crate::Result<PathBuf> {
-        let removed_path = self.original_path();
-        fs::rename(self.files_filepath(), &removed_path)?;
+        let original_path = self.original_path();
+        if let Some(parent) = original_path.parent() {
+            assert!(parent.is_absolute());
+            fs::create_dir_all(parent)?;
+        }
+        fs::rename(self.files_filepath(), &original_path)?;
         fs::remove_file(self.info_filepath())?;
-        Ok(removed_path)
+        Ok(original_path)
     }
 }

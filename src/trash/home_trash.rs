@@ -1,4 +1,5 @@
 use super::Trash;
+use crate::trash::TrashType;
 use std::{env, fs, os::unix::fs::MetadataExt, path::PathBuf};
 
 impl Trash {
@@ -24,7 +25,7 @@ impl Trash {
             mount_root: xdg_data_dir,
             info_dir,
             files_dir,
-            priority: 3,
+            trash_type: TrashType::Home,
             use_relative_path: false,
         })
     }

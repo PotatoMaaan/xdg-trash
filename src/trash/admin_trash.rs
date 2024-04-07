@@ -1,4 +1,5 @@
 use super::Trash;
+use crate::trash::TrashType;
 use std::{
     fs,
     os::unix::fs::{MetadataExt, PermissionsExt},
@@ -8,7 +9,7 @@ use std::{
 impl Trash {
     pub fn find_admin_trash(mount_root: PathBuf) -> crate::Result<Self> {
         let trash_dir = mount_root.join(".Trash");
-        let trash_dir_meta = fs::metadata(&trash_dir)?;
+        let trash_dir_meta = fs::symlink_metadata(&trash_dir)?;
         let uid = unsafe { libc::getuid() };
         let uid = uid.to_string();
 
@@ -40,7 +41,7 @@ impl Trash {
             mount_root,
             info_dir,
             files_dir,
-            priority: 2,
+            trash_type: TrashType::Admin,
             use_relative_path: true,
         })
     }

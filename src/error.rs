@@ -66,6 +66,9 @@ pub enum Error {
 
     /** Failed to create a new trashcan at {0} */
     FailedToCreateTrash(PathBuf, #[source] Box<Self>),
+
+    /** No appropriate trash can was found */
+    NoTrashFound,
 }
 
 pub type Result<T> = core::result::Result<T, Error>;
