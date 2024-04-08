@@ -58,8 +58,11 @@ pub enum Error {
     /** The path has no filename */
     HasNoFilename,
 
-    /** The file was not a child component of the trash mount root (should not happen): {0} */
-    InputNotChildOfTrashMount(#[source] std::path::StripPrefixError),
+    /**
+     * The file was not a child component of the trash mount root.
+     * This ususually happens when multiple qualifying trash dirs exist on one physical device
+     */
+    InputNotChildOfTrashMount,
 
     /** Failed to move file: {0} */
     FailedToMoveFile(std::io::Error),

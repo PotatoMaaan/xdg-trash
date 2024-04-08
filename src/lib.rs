@@ -47,8 +47,8 @@ impl UnifiedTrash {
     /// let trashes = list_trashes().unwrap().filter(|t| t.device() != 500);
     /// let unified_trash = UnifiedTrash::with_trashcans(trashes);
     /// ```
-    pub fn with_trashcans(trashes: impl Iterator<Item = Trash>) -> Self {
-        let mut trashes = trashes.map(Rc::new).collect::<Vec<_>>();
+    pub fn with_trashcans(trashes: impl Iterator<Item = Rc<Trash>>) -> Self {
+        let mut trashes = trashes.collect::<Vec<_>>();
         sort_trashes(&mut trashes);
         Self {
             known_trashes: trashes,
@@ -82,11 +82,13 @@ impl UnifiedTrash {
             )
         })?;
 
-        let trash = if let Some(known_trash) = self
-            .known_trashes
-            .iter()
-            .find(|trash| trash.device() == input_path_meta.dev())
-        {
+        let trash = if let Some(known_trash) = self.known_trashes.iter().find(|trash| {
+            // Checks if file is on the same physical device as the trashcan
+            trash.device() == input_path_meta.dev()
+                // checks if the file is a child of the trash mount root, if this is not the case,
+                // it means that multiple trashes exist on the same device. In this case, we just continue searching
+                && input_path.strip_prefix(trash.mount_root()).is_ok()
+        }) {
             known_trash.clone()
         } else if known_only {
             return Err(crate::Error::NoTrashFound);
@@ -127,12 +129,12 @@ impl UnifiedTrash {
 }
 
 /// Returns an iterator over all trashes available on the system
-pub fn list_trashes() -> crate::Result<impl Iterator<Item = Trash>> {
+pub fn list_trashes() -> crate::Result<impl Iterator<Item = Rc<Trash>>> {
     let home_trash =
         Trash::find_home_trash().map_err(|e| crate::Error::FailedToFindHomeTrash(Box::new(e)))?;
     let mounts_iter = list_mounts()?.into_iter().map(find_any_trash_at).flatten();
 
-    Ok(mounts_iter.chain([home_trash].into_iter()))
+    Ok(mounts_iter.chain([home_trash].into_iter()).map(Rc::new))
 }
 
 fn find_any_trash_at(mount_root: PathBuf) -> Option<Trash> {

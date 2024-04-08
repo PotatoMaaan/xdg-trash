@@ -55,7 +55,7 @@ impl TrashFile {
             .ok_or(crate::Error::HasNoFileStem(info_file_path.to_owned()))?
             .to_owned();
 
-        if !trash.files_dir().join(&without_trashinfo_ext).exists() {
+        if fs::symlink_metadata(trash.files_dir().join(&without_trashinfo_ext)).is_err() {
             log::warn!("Orphaned trashinfo file: {}", info_file_path.display());
             return Err(crate::Error::OrphanedTrashinfoFile);
         }
@@ -91,7 +91,7 @@ impl TrashFile {
     /// Permanently remove this file from the trash
     pub fn remove(self) -> crate::Result<()> {
         let file = self.files_filepath();
-        let file_meta = fs::metadata(&file)?;
+        let file_meta = fs::symlink_metadata(&file)?;
         if file_meta.is_dir() {
             fs::remove_dir_all(&file)?;
         } else {

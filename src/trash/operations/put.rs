@@ -88,7 +88,7 @@ fn put_inner(trash: Rc<Trash>, input_path: &Path) -> crate::Result<TrashFile> {
                 path: if trash.use_relative_path {
                     input_path
                         .strip_prefix(&trash.mount_root)
-                        .map_err(|e| crate::Error::InputNotChildOfTrashMount(e))
+                        .map_err(|_| crate::Error::InputNotChildOfTrashMount)
                         .map(|x| x.to_owned())?
                 } else {
                     input_path.to_owned()
