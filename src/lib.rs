@@ -2,13 +2,14 @@
 //! 
 //! This crate implements the basic xdg-trash specification, but, like most other implementatioms, does not implement
 //! "Directory size cache", added in version 1.0 of the specification.
-//! 
-//! ## Linux only
-//! This crate is linux only for now, as it relies on reading `/proc/mounts` and uses some unix-only io extensions.
-//! 
+//!
 //! Trashcans can be located across multiple locations and physical devices, this is to avoid having to copy files
 //! across filesystem boundaries upon trashing a file. This crate provides a [`UnifiedTrash`], which combines all
 //! trashcans across the system into a single interface.
+//! 
+//! ## Linux only
+//! This crate is linux only for now, as it relies on reading `/proc/mounts` and uses some unix-only io extensions.
+//! If you're looking for something cross-platform, you'll probably want [the trash crate](https://crates.io/crates/trash)
 //! 
 //! ## Considerations
 //! When dealing with a users trashed files, it's probably a good idea to not always abort
