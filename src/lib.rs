@@ -28,9 +28,13 @@
 //!
 //! let mut trash = UnifiedTrash::new().unwrap();
 //!
+//! // just creating a file to trash
 //! _ = File::create("somefile.txt").unwrap();
+//!
+//! // put file into trash
 //! trash.put("somefile.txt").unwrap();
 //!
+//! // list all trashed files
 //! for file in trash.list() {
 //!     let file = file.unwrap();
 //!     println!("Found in trash: {}", file.original_path().display());
@@ -127,7 +131,7 @@ impl UnifiedTrash {
         self.put_inner(input_path.as_ref(), true)
     }
 
-    /// Attempts to put the file at `input_path` into a trashcan, creating a new one if one doesn't exist.
+    /// Puts the file at `input_path` into a trashcan, creating a new one if one doesn't exist.
     ///
     /// Returns the created trashfile.
     pub fn put(&mut self, input_path: impl AsRef<Path>) -> crate::Result<TrashFile> {
@@ -191,7 +195,7 @@ impl UnifiedTrash {
     }
 }
 
-/// Returns an iterator over all trashes available on the system (includes home trash)
+/// Returns an iterator over all trashes (not trashed files) available on the system (includes home trash)
 pub fn list_trashes() -> crate::Result<impl Iterator<Item = Rc<Trash>>> {
     let home_trash = Trash::find_or_create_home_trash()
         .map_err(|e| crate::Error::FailedToFindHomeTrash(Box::new(e)))?;
@@ -207,7 +211,7 @@ fn find_any_trash_at(mount_root: PathBuf) -> Option<Trash> {
     admin_trash.ok().or(user_trash.ok())
 }
 
-/// Sort trashes by their priority such that admin trashes will always be before user trashes
+/// Sorts trashes by their priority such that admin trashes will always be before user trashes
 fn sort_trashes(trashes: &mut [Rc<Trash>]) {
     trashes.sort_by_key(|x| -x.trash_type().priority());
 }
