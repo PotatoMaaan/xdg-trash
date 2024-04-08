@@ -1,46 +1,41 @@
 //! Interact with xdg-trash implementations, see <https://specifications.freedesktop.org/trash-spec/trashspec-1.0.html>.
-//! 
-//! This crate implements the basic xdg-trash specification, but, like most other implementatioms, does not implement
-//! "Directory size cache", added in version 1.0 of the specification.
+//!
+//! This crate implements the basic xdg-trash 1.0 specification, but, like most other implementatioms, does not implement
+//! "Directory size cache", present in recent versions the specification.
 //!
 //! Trashcans can be located across multiple locations and physical devices, this is to avoid having to copy files
 //! across filesystem boundaries upon trashing a file. This crate provides a [`UnifiedTrash`], which combines all
 //! trashcans across the system into a single interface.
-//! 
+//!
 //! ## Linux only
 //! This crate is linux only for now, as it relies on reading `/proc/mounts` and uses some unix-only io extensions.
 //! If you're looking for something cross-platform, you'll probably want [the trash crate](https://crates.io/crates/trash)
-//! 
+//!
 //! ## Considerations
 //! When dealing with a users trashed files, it's probably a good idea to not always abort
 //! on the first error, but to instead be fault tolerant in order to still provide functionality,
 //! even if errors were encountered.
-//! 
+//!
 //! In practice this mostly means filtering out errors and or informing a user about a failure and
 //! allowing them to choose further actions.
-//! 
-//! ## Conservative file handling
-//! This implementation is conservative, basing files only on the contents of the `info` dir within a trash,
-//! and only accepting files where a corresponding `.trashinfo` is present. When a file you expect to see
-//! is not listed as being part of the trash, it might be because it doesn't have a `.trashinfo` file.
-//! 
+//!
 //! # Example
 //! This example shows how to trash a file and list all trashed files
 //! ```
 //! use xdg_trash::UnifiedTrash;
 //! use std::fs::File;
-//! 
+//!
 //! let mut trash = UnifiedTrash::new().unwrap();
-//! 
+//!
 //! _ = File::create("somefile.txt").unwrap();
 //! trash.put("somefile.txt").unwrap();
-//! 
+//!
 //! for file in trash.list() {
 //!     let file = file.unwrap();
 //!     println!("Found in trash: {}", file.original_path().display());
 //! }
 //! ```
-//! 
+//!
 //! ## Terminology
 //! | Name | Meaning |
 //! | --- | --- |
@@ -88,16 +83,16 @@ impl UnifiedTrash {
 
     /// Creates a new unified trash with a custom selection of trashcans.
     /// Should only be used if you know what you're doing (you've read the xdg-trash spec).
-    /// 
+    ///
     /// An iterator over all trashcans can be obtained from the [`list_trashes`] function.
     ///
     /// Note that some function (such as [`Self::put`]) might still use / create new trashcans.
     /// Use the `_known` functions ([`Self::put_known`]) to only use this list of trashcans
     ///
     /// # Don't forget the home trash
-    /// In 99,9% of cases, you'll want to pass one (and only one) home trash in here. 
+    /// In 99,9% of cases, you'll want to pass one (and only one) home trash in here.
     /// [`list_trashes`] already contains a home trash.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// use xdg_trash::{list_trashes, UnifiedTrash};
@@ -115,7 +110,7 @@ impl UnifiedTrash {
     }
 
     /// Returns an iterator over all files in all *known* trashcans.
-    /// 
+    ///
     /// The iterator will yield an error if a `.trashinfo` file has no correspondig actual file,
     /// so you might want to simply filter out all errors.
     pub fn list(&self) -> impl Iterator<Item = crate::Result<TrashFile>> + '_ {
@@ -143,13 +138,17 @@ impl UnifiedTrash {
             )
         })?;
         let input_abs = lexical_absolute(input_path)?;
-        let trash = if let Some(known_trash) = self.known_trashes.iter().inspect(|x| log::trace!("Checking: {:?}", x.mount_root())).find(|trash| {
-            // Checks if file is on the same physical device as the trashcan
-            trash.device() == input_path_meta.dev()
+        let trash = if let Some(known_trash) = self
+            .known_trashes
+            .iter()
+            .inspect(|x| log::trace!("Checking: {:?}", x.mount_root()))
+            .find(|trash| {
+                // Checks if file is on the same physical device as the trashcan
+                trash.device() == input_path_meta.dev()
                 // checks if the file is a child of the trash mount root, if this is not the case,
                 // it means that multiple trashes exist on the same device. In this case, we just continue searching
                 && input_abs.strip_prefix(trash.based_on()).is_ok()
-        }) {
+            }) {
             log::trace!("Found matching trash");
             known_trash.clone()
         } else if known_only {
@@ -190,8 +189,8 @@ impl UnifiedTrash {
 
 /// Returns an iterator over all trashes available on the system (includes home trash)
 pub fn list_trashes() -> crate::Result<impl Iterator<Item = Rc<Trash>>> {
-    let home_trash =
-        Trash::find_or_create_home_trash().map_err(|e| crate::Error::FailedToFindHomeTrash(Box::new(e)))?;
+    let home_trash = Trash::find_or_create_home_trash()
+        .map_err(|e| crate::Error::FailedToFindHomeTrash(Box::new(e)))?;
     let mounts_iter = list_mounts()?.into_iter().filter_map(find_any_trash_at);
 
     Ok(mounts_iter.chain([home_trash]).map(Rc::new))
