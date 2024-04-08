@@ -4,7 +4,7 @@ use std::{
     str::FromStr,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// 1:1 representation of a .trashinfo file.
 /// The caller is responsible for handling relative paths etc.
 pub struct TrashInfo {

@@ -72,6 +72,9 @@ pub enum Error {
 
     /** No appropriate trash can was found */
     NoTrashFound,
+
+    /** A file already exists at {0} */
+    AlreadyExists(PathBuf)
 }
 
 /// A Result type predefined with the libraries error

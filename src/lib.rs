@@ -1,4 +1,7 @@
-//! Interact with xdg-trash implementations, see <https://specifications.freedesktop.org/trash-spec/trashspec-1.0.html>
+//! Interact with xdg-trash implementations, see <https://specifications.freedesktop.org/trash-spec/trashspec-1.0.html>.
+//! 
+//! This crate implements the basic xdg-trash specification, but, like most other implementatioms, does not implement
+//! "Directory size cache", added in version 1.0 of the specification.
 //! 
 //! ## Linux only
 //! This crate is linux only for now, as it relies on reading `/proc/mounts` and uses some unix-only io extensions.
@@ -13,7 +16,12 @@
 //! even if errors were encountered.
 //! 
 //! In practice this mostly means filetering out errors and or informing a user about a failure and
-//! allowing them to choose further actions
+//! allowing them to choose further actions.
+//! 
+//! ## Conservative file handling
+//! This implementation is conservative, basing files only on the contents of the `info` dir within a trash,
+//! and only accepting files where a corresponding `.trashinfo` is present. When a file you expect to see
+//! is not listed as being part of the trash, it might be because it doesn't have a `.trashinfo` file.
 //! 
 //! # Example
 //! This example shows how to trash a file and list all trashed files
@@ -31,6 +39,15 @@
 //!     println!("Found in trash: {}", file.original_path().display());
 //! }
 //! ```
+//! 
+//! ## Terminoligy
+//! | Name | Meaning |
+//! | --- | --- |
+//! | put | Put a file into the trash, moving it away from it's location (acts like it was deleted) |
+//! | list | List all currently trashes files |
+//! | restore | Restore a currently trashed file to the location where it was prior to being trashed |
+//! | remove | Permanently remove a file from the trash |
+//! | empty | Permanently removes all trashes files |
 
 use std::{
     ffi::OsStr,
@@ -61,18 +78,25 @@ pub struct UnifiedTrash {
 }
 
 impl UnifiedTrash {
-    /// Attempt to create a unified trash with all trashcans found in the system.
+    /// Creates a unified trash with all trashcans found in the system.
+    /// If you just want to trash a file, this is probably what you want.
     pub fn new() -> crate::Result<Self> {
         let trashes = list_trashes()?;
         Ok(Self::with_trashcans(trashes))
     }
 
-    /// Create a new unified trash with a custom selection of trashcans.
-    /// An iterator over all trashcans can be obtained by the [`list_trashes`] function.
+    /// Creates a new unified trash with a custom selection of trashcans.
+    /// Should only be used if you know what you're doing (you've read the xdg-trash spec).
+    /// 
+    /// An iterator over all trashcans can be obtained from the [`list_trashes`] function.
     ///
     /// Note that some function (such as [`Self::put`]) might still use / create new trashcans.
     /// Use the `_known` functions ([`Self::put_known`]) to only use this list of trashcans
     ///
+    /// # Don't forget the home trash
+    /// In 99,9% of cases, you'll want to pass one (and only one) home trash in here. 
+    /// [`list_trashes`] already contains a home trash.
+    /// 
     /// # Examples
     /// ```
     /// use xdg_trash::{list_trashes, UnifiedTrash};
@@ -144,12 +168,8 @@ impl UnifiedTrash {
 
             let trash = Rc::new(trash);
 
-            /*
-             * We can push this into the trashes without re-sorting because user trashes
-             * have the lowest priority, so it would end up somewhere at the end of the
-             * list even if we sorted.
-             */
             self.known_trashes.push(trash.clone());
+            sort_trashes(&mut self.known_trashes);
             trash
         };
 
@@ -157,7 +177,7 @@ impl UnifiedTrash {
         trash.put(input_path)
     }
 
-    /// Attempts to delete all trashed files in the *known* trash cans.
+    /// Permanently removes all trashed files in the *known* trash cans.
     pub fn empty(&self) -> crate::Result<impl Iterator<Item = crate::Result<PathBuf>> + '_> {
         Ok(self
             .known_trashes
@@ -167,10 +187,10 @@ impl UnifiedTrash {
     }
 }
 
-/// Returns an iterator over all trashes available on the system
+/// Returns an iterator over all trashes available on the system (includes home trash)
 pub fn list_trashes() -> crate::Result<impl Iterator<Item = Rc<Trash>>> {
     let home_trash =
-        Trash::find_home_trash().map_err(|e| crate::Error::FailedToFindHomeTrash(Box::new(e)))?;
+        Trash::find_or_create_home_trash().map_err(|e| crate::Error::FailedToFindHomeTrash(Box::new(e)))?;
     let mounts_iter = list_mounts()?.into_iter().filter_map(find_any_trash_at);
 
     Ok(mounts_iter.chain([home_trash]).map(Rc::new))

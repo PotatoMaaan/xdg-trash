@@ -3,8 +3,8 @@ use crate::trash::TrashType;
 use std::{env, fs, os::unix::fs::MetadataExt, path::PathBuf};
 
 impl Trash {
-    /// Finds the users home trashcan (located at  `$XDG_DATA_HOME/.local/share/Trash`)
-    pub fn find_home_trash() -> crate::Result<Self> {
+    /// Finds or creates the users home trashcan (located at  `$XDG_DATA_HOME/.local/share/Trash`)
+    pub fn find_or_create_home_trash() -> crate::Result<Self> {
         let home_dir = PathBuf::from(env::var("HOME").map_err(|_| crate::Error::Homeless)?);
 
         let xdg_data_dir = env::var("XDG_DATA_HOME")
@@ -12,6 +12,7 @@ impl Trash {
             .unwrap_or(home_dir.join(".local").join("share"));
 
         let trash_dir = xdg_data_dir.join("Trash");
+        fs::create_dir_all(&trash_dir)?;
         let trash_dir_meta = fs::metadata(&xdg_data_dir)?;
 
         let info_dir = trash_dir.join("info");
@@ -19,7 +20,7 @@ impl Trash {
         fs::create_dir_all(&info_dir)?;
         fs::create_dir_all(&files_dir)?;
 
-        log::debug!("Found home trash at: {}", trash_dir.display());
+        log::debug!("Home trash at: {}", trash_dir.display());
 
         Ok(Self {
             device: trash_dir_meta.dev(),

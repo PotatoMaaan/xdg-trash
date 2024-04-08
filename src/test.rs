@@ -31,7 +31,7 @@ fn test_single_trash_put_list_restore() {
     t1.clone().put(&f1).unwrap();
     assert!(!f1.exists());
     
-    t1.list().unwrap().next().unwrap().unwrap().restore().unwrap();
+    t1.list().unwrap().next().unwrap().unwrap().restore(true).unwrap();
     assert!(f1.exists());
 }
 
@@ -58,7 +58,6 @@ fn test_single_trash_put_multiple() {
     t1.clone().put(&f1).unwrap();
     
     assert!(!f1.exists());
-    
 }
 
 
@@ -113,7 +112,7 @@ fn test_put_list_restore() {
     listed.iter().find(|x| x.original_path() == f4).unwrap();
 
     listed.into_iter().for_each(|x| {
-        x.restore().unwrap();
+        x.restore(true).unwrap();
     });
 
     assert!(f1.exists());

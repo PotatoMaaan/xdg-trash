@@ -8,8 +8,15 @@ mod home_trash;
 mod operations;
 mod user_trash;
 
-/// A single trashcan on the system
-#[derive(Debug)]
+/// A single trashcan on the system.
+/// 
+/// ## Note about `mount_root`
+/// It is strongly advised to only specify paths as mount_root that are actually at the
+/// root of a mounted filesystem. This implementation does support trashes at non-fs-root
+/// locations, however, this is only the case when these trashes are already part of the
+/// known trashes. The [`crate::list_trashes`] function does **NOT** find these trashes!
+/// It's most likely that other implementations will also not find any trashes at these locations.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Trash {
     device: u64,
     mount_root: PathBuf,
@@ -21,7 +28,7 @@ pub struct Trash {
 }
 
 /// The type of a trashcan
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TrashType {
     /// Located in the users home directory, ususally in `~/.local/share/Trash`
     Home,
