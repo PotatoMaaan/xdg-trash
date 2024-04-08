@@ -1,8 +1,6 @@
 use crate::{Trash, UnifiedTrash};
 use dircpy::copy_dir;
-use std::{
-    fs, path::PathBuf, rc::Rc
-};
+use std::{fs, path::PathBuf, rc::Rc};
 use tempdir::TempDir;
 
 fn prepare_testdir() -> (TempDir, [PathBuf; 2], [Rc<Trash>; 2]) {
@@ -30,8 +28,14 @@ fn test_single_trash_put_list_restore() {
     assert!(f1.exists());
     t1.clone().put(&f1).unwrap();
     assert!(!f1.exists());
-    
-    t1.list().unwrap().next().unwrap().unwrap().restore(true).unwrap();
+
+    t1.list()
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .restore(true)
+        .unwrap();
     assert!(f1.exists());
 }
 
@@ -54,13 +58,11 @@ fn test_single_trash_put_multiple() {
 
     fs::rename(&f2, &f1).unwrap();
     assert!(f1.exists());
-    
+
     t1.clone().put(&f1).unwrap();
-    
+
     assert!(!f1.exists());
 }
-
-
 
 #[test]
 fn test_single_trash_put_list_remove() {
@@ -71,8 +73,14 @@ fn test_single_trash_put_list_remove() {
     assert!(f1.exists());
     t1.clone().put(&f1).unwrap();
     assert!(!f1.exists());
-    
-    t1.list().unwrap().next().unwrap().unwrap().remove().unwrap();
+
+    t1.list()
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .remove()
+        .unwrap();
     assert!(!f1.exists());
 }
 

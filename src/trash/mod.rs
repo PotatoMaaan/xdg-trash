@@ -9,7 +9,7 @@ mod operations;
 mod user_trash;
 
 /// A single trashcan on the system.
-/// 
+///
 /// ## Note about `mount_root`
 /// It is strongly advised to only specify paths as mount_root that are actually at the
 /// root of a mounted filesystem. This implementation does support trashes at non-fs-root
@@ -53,6 +53,7 @@ impl TrashType {
 }
 
 impl Trash {
+    /// The type of this trashcan
     pub fn trash_type(&self) -> TrashType {
         self.trash_type
     }
@@ -68,23 +69,23 @@ impl Trash {
     }
 
     /// Directory to which relative paths from trashed files will be joined to.
-    /// 
+    ///
     /// # Example
     /// `/mnt/disk1`: Trashed files in `/mnt/disk1/.Trash-1000` might have a relative
     /// `original_path`, this will then get joined onto `/mnt/disk1`
-    /// to produce an absolute path. 
+    /// to produce an absolute path.
     pub fn mount_root(&self) -> &Path {
         &self.mount_root
     }
 
     /// Like mount_root, but only contains the *public* part of the path.
     /// This gets checked to test if a given file can be stored in this trashcan.
-    /// 
+    ///
     /// # Example
     /// `/home/user/.local/share` -> `mount_root`, contains *trash specific* path
-    /// 
+    ///
     /// `/home/user`              -> `based_on`, only contains *public* section
-    /// 
+    ///
     /// Without this, `/home/user/Documents/some_file.txt` would not qualify for
     /// the home trash, even if they are the same device
     pub fn based_on(&self) -> &Path {

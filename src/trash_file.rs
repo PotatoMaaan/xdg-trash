@@ -104,14 +104,14 @@ impl TrashFile {
     /// Restores the file to it's original location, creating all parent
     /// directories of the file if they don't exist anymore.
     ///
-    /// Returns the location the file was restored to
+    /// Returns the location the file was restored to.
     pub fn restore(self, overwrite_existing: bool) -> crate::Result<PathBuf> {
         let original_path = self.original_path();
-        
+
         if !overwrite_existing && fs::symlink_metadata(&original_path).is_ok() {
             return Err(crate::Error::AlreadyExists(original_path));
         }
-        
+
         if let Some(parent) = original_path.parent() {
             assert!(parent.is_absolute());
             fs::create_dir_all(parent)?;

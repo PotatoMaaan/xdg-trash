@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! Interact with xdg-trash implementations, see <https://specifications.freedesktop.org/trash-spec/trashspec-1.0.html>.
 //!
 //! This crate implements the basic xdg-trash 1.0 specification, but, like most other implementatioms, does not implement
@@ -61,8 +62,7 @@ mod test;
 pub use error::*;
 pub use trash::{Trash, TrashType};
 
-pub mod error;
-
+mod error;
 mod trash;
 mod trash_file;
 mod trashinfo;
@@ -121,11 +121,15 @@ impl UnifiedTrash {
     }
 
     /// Puts the file at `input_path` into one of the *known* trashcans, failing if no matching trashcan is known.
+    ///
+    /// Returns the created trashfile.
     pub fn put_known(&mut self, input_path: impl AsRef<Path>) -> crate::Result<TrashFile> {
         self.put_inner(input_path.as_ref(), true)
     }
 
     /// Attempts to put the file at `input_path` into a trashcan, creating a new one if one doesn't exist.
+    ///
+    /// Returns the created trashfile.
     pub fn put(&mut self, input_path: impl AsRef<Path>) -> crate::Result<TrashFile> {
         self.put_inner(input_path.as_ref(), false)
     }

@@ -9,6 +9,7 @@ use std::{
 };
 
 impl Trash {
+    /// Puts the file at `input_path` into this trashcan, returning the created trashfile
     pub fn put(self: Rc<Self>, input_path: &Path) -> crate::Result<TrashFile> {
         put_inner(self, input_path)
             .map_err(|e| crate::Error::FailedToTrashFile(input_path.to_owned(), Box::new(e)))

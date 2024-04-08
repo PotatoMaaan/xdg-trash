@@ -2,6 +2,7 @@ use crate::trash::Trash;
 use std::{fs, path::PathBuf};
 
 impl Trash {
+    /// Permanently removes all files currently in this trash
     pub fn empty(&self) -> crate::Result<impl Iterator<Item = crate::Result<PathBuf>>> {
         empty_inner(self)
     }

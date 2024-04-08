@@ -2,6 +2,8 @@ use displaydoc::Display;
 use std::{io, path::PathBuf};
 use thiserror::Error;
 
+/// Error type representing every possible error in this crate
+#[non_exhaustive]
 #[derive(Debug, Display, Error)]
 pub enum Error {
     /** The HOME env var was not set */
@@ -35,7 +37,10 @@ pub enum Error {
     InvalidDateTime(#[from] chrono::ParseError),
 
     /** None of the available parsers matched the datetime: [errors:?] */
-    InvalidDateTimeNoParserMatched { errors: Vec<chrono::ParseError> },
+    InvalidDateTimeNoParserMatched {
+        /** A list of errors returned by each parser */
+        errors: Vec<chrono::ParseError>,
+    },
 
     /** The trashinfo file at {0} is invalid */
     InvalidTrashinfoFile(PathBuf, #[source] Box<Self>),
@@ -74,8 +79,8 @@ pub enum Error {
     NoTrashFound,
 
     /** A file already exists at {0} */
-    AlreadyExists(PathBuf)
+    AlreadyExists(PathBuf),
 }
 
-/// A Result type predefined with the libraries error
+/// A Result type predefined with this librarys error
 pub type Result<T> = core::result::Result<T, Error>;
