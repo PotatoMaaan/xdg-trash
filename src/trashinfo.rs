@@ -46,7 +46,7 @@ impl FromStr for TrashInfo {
             .get(DELDATE_KEY)
             .ok_or(crate::Error::MissingKey(DELDATE_KEY))?;
 
-        let deleted_at = try_different_parsers(&deleted_at)
+        let deleted_at = try_different_parsers(deleted_at)
             .map_err(|e| crate::Error::InvalidDateTimeNoParserMatched { errors: e })?;
 
         Ok(Self { path, deleted_at })
@@ -67,7 +67,7 @@ impl TrashInfo {
     pub fn write_to(&self, mut w: impl Write) -> crate::Result<()> {
         let file = self.create_trashinfofile();
         w.write_all(file.as_bytes())
-            .map_err(|e| crate::Error::IoError(e))
+            .map_err(crate::Error::IoError)
     }
 }
 

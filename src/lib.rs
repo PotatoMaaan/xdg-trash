@@ -96,8 +96,7 @@ impl UnifiedTrash {
     pub fn list(&self) -> impl Iterator<Item = crate::Result<TrashFile>> + '_ {
         self.known_trashes
             .iter()
-            .map(|trash| trash.clone().list())
-            .flatten()
+            .flat_map(|trash| trash.clone().list())
             .flatten()
     }
 
@@ -133,7 +132,7 @@ impl UnifiedTrash {
         } else {
             log::trace!("No trash found, trying to find or create one");
 
-            let mount_root = find_mount_root(&input_path)?;
+            let mount_root = find_mount_root(input_path)?;
 
             let trash = if let Some(found_trash) = find_any_trash_at(mount_root.clone()) {
                 found_trash
@@ -163,8 +162,7 @@ impl UnifiedTrash {
         Ok(self
             .known_trashes
             .iter()
-            .map(|trash| trash.empty())
-            .flatten()
+            .flat_map(|trash| trash.empty())
             .flatten())
     }
 }
@@ -173,9 +171,9 @@ impl UnifiedTrash {
 pub fn list_trashes() -> crate::Result<impl Iterator<Item = Rc<Trash>>> {
     let home_trash =
         Trash::find_home_trash().map_err(|e| crate::Error::FailedToFindHomeTrash(Box::new(e)))?;
-    let mounts_iter = list_mounts()?.into_iter().map(find_any_trash_at).flatten();
+    let mounts_iter = list_mounts()?.into_iter().filter_map(find_any_trash_at);
 
-    Ok(mounts_iter.chain([home_trash].into_iter()).map(Rc::new))
+    Ok(mounts_iter.chain([home_trash]).map(Rc::new))
 }
 
 fn find_any_trash_at(mount_root: PathBuf) -> Option<Trash> {
@@ -186,8 +184,8 @@ fn find_any_trash_at(mount_root: PathBuf) -> Option<Trash> {
 }
 
 /// Sort trashes by their priority such that admin trashes will always be before user trashes
-fn sort_trashes(trashes: &mut Vec<Rc<Trash>>) {
-    trashes.sort_by_key(|x| x.trash_type().priority() * -1);
+fn sort_trashes(trashes: &mut [Rc<Trash>]) {
+    trashes.sort_by_key(|x| -x.trash_type().priority());
 }
 
 /// Lists all mounted filesystems (on linux)
@@ -233,6 +231,6 @@ fn find_mount_root(path: &Path) -> crate::Result<PathBuf> {
         .map(|(p, x)| (p, x.map(|x| x.dev())))
         .take_while(|(_, x)| x.as_ref().ok() == Some(&root_dev))
         .map(|(p, x)| x.map(|_| p))
-        .map(|x| x.map_err(|e| crate::Error::IoError(e)))
+        .map(|x| x.map_err(crate::Error::IoError))
         .collect()
 }

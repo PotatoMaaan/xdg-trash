@@ -105,9 +105,9 @@ fn put_inner(trash: Rc<Trash>, input_path: &Path) -> crate::Result<TrashFile> {
         };
 
         let full_trash_path_files = trash.files_dir.join(&trash_name);
-        if let Err(e) = fs::rename(&input_path, &full_trash_path_files) {
+        if let Err(e) = fs::rename(&input_path, full_trash_path_files) {
             log::error!("Failed to move file into trash, reverting trashinfo file");
-            if let Err(_) = fs::remove_file(full_trash_path_info) {
+            if fs::remove_file(full_trash_path_info).is_err() {
                 log::error!("Failed to revert trashinfo file");
             }
             return Err(crate::Error::FailedToMoveFile(e));

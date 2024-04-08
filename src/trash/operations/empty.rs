@@ -12,7 +12,7 @@ fn empty_inner(trash: &Trash) -> crate::Result<impl Iterator<Item = crate::Resul
     let files = fs::read_dir(&trash.files_dir)?;
     Ok(infos
         .chain(files)
-        .map(|x| {
+        .flat_map(|x| {
             x.map(|entry| {
                 let path = entry.path();
                 entry.file_type().map(|x| {
@@ -22,10 +22,9 @@ fn empty_inner(trash: &Trash) -> crate::Result<impl Iterator<Item = crate::Resul
                         fs::remove_file(path)
                     }
                     .map(|_| entry.path())
-                    .map_err(|e| crate::Error::IoError(e))
+                    .map_err(crate::Error::IoError)
                 })
             })
         })
-        .flatten()
         .flatten())
 }
