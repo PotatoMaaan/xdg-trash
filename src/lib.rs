@@ -1,3 +1,37 @@
+//! Interact with xdg-trash implementations, see <https://specifications.freedesktop.org/trash-spec/trashspec-1.0.html>
+//! 
+//! ## Linux only
+//! This crate is linux only for now, as it relies on reading `/proc/mounts` and uses some unix-only io extensions.
+//! 
+//! Trashcans can be located across multiple locations and physical devices, this is to avoid having to copy files
+//! across filesystem boundaries upon trashing a file. This crate proides a [`UnifiedTrash`], which combines all
+//! trashcans across the system into a single interface.
+//! 
+//! ## Considerations
+//! When dealing with a users trashed files, it's probably a good idea to not always abort
+//! on the first error, but to instread be fault tolerant in order to still provide functionality,
+//! even if errors were encountered.
+//! 
+//! In practice this mostly means filetering out errors and or informing a user about a failure and
+//! allowing them to choose further actions
+//! 
+//! # Example
+//! This example shows how to trash a file and list all trashed files
+//! ```
+//! use xdg_trash::UnifiedTrash;
+//! use std::fs::File;
+//! 
+//! let mut trash = UnifiedTrash::new().unwrap();
+//! 
+//! _ = File::create("somefile.txt");
+//! trash.put("somefile.txt").unwrap();
+//! 
+//! for file in trash.list() {
+//!     let file = file.unwrap();
+//!     println!("Found in trash: {}", file.original_path().display());
+//! }
+//! ```
+
 use std::{
     ffi::OsStr,
     fmt::Debug,
@@ -20,7 +54,7 @@ mod trash;
 mod trash_file;
 mod trashinfo;
 
-/// Unifies all trashcan on the system into one interface.
+/// Unifies all trashcans on the system into one interface.
 #[derive(Debug)]
 pub struct UnifiedTrash {
     known_trashes: Vec<Rc<Trash>>,
@@ -55,7 +89,10 @@ impl UnifiedTrash {
         }
     }
 
-    /// Returns an iterator over all files in all *known* trashcans
+    /// Returns an iterator over all files in all *known* trashcans.
+    /// 
+    /// The iterator will yield an error if a `.trashinfo` file has no correspondig actual file,
+    /// so you might want to simply filter out all errors.
     pub fn list(&self) -> impl Iterator<Item = crate::Result<TrashFile>> + '_ {
         self.known_trashes
             .iter()
@@ -81,18 +118,21 @@ impl UnifiedTrash {
                 Box::new(crate::Error::IoError(e)),
             )
         })?;
-
-        let trash = if let Some(known_trash) = self.known_trashes.iter().find(|trash| {
+        let input_abs = lexical_absolute(input_path)?;
+        let trash = if let Some(known_trash) = self.known_trashes.iter().inspect(|x| log::trace!("Checking: {:?}", x.mount_root())).find(|trash| {
             // Checks if file is on the same physical device as the trashcan
             trash.device() == input_path_meta.dev()
                 // checks if the file is a child of the trash mount root, if this is not the case,
                 // it means that multiple trashes exist on the same device. In this case, we just continue searching
-                && input_path.strip_prefix(trash.mount_root()).is_ok()
+                && input_abs.strip_prefix(trash.based_on()).is_ok()
         }) {
+            log::trace!("Found matching trash");
             known_trash.clone()
         } else if known_only {
             return Err(crate::Error::NoTrashFound);
         } else {
+            log::trace!("No trash found, trying to find or create one");
+
             let mount_root = find_mount_root(&input_path)?;
 
             let trash = if let Some(found_trash) = find_any_trash_at(mount_root.clone()) {
@@ -114,6 +154,7 @@ impl UnifiedTrash {
             trash
         };
 
+        log::trace!("Putting into trash");
         trash.put(input_path)
     }
 
@@ -185,14 +226,13 @@ fn lexical_absolute(p: &Path) -> std::io::Result<PathBuf> {
 
 /// Finds the mount point of the filesystem on which the path resides
 fn find_mount_root(path: &Path) -> crate::Result<PathBuf> {
-    let path = path.canonicalize()?;
-    let root_dev = fs::metadata(&path)?.dev();
+    let path = lexical_absolute(path)?;
+    let root_dev = fs::symlink_metadata(&path)?.dev();
     path.ancestors()
         .map(|p| (p, fs::metadata(p)))
         .map(|(p, x)| (p, x.map(|x| x.dev())))
         .take_while(|(_, x)| x.as_ref().ok() == Some(&root_dev))
         .map(|(p, x)| x.map(|_| p))
         .map(|x| x.map_err(|e| crate::Error::IoError(e)))
-        .inspect(|x| println!("{:?}", x))
         .collect()
 }

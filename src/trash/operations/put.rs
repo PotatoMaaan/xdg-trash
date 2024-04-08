@@ -27,7 +27,8 @@ fn put_inner(trash: Rc<Trash>, input_path: &Path) -> crate::Result<TrashFile> {
     let mut iter: u64 = 0;
     let (trashinfo, trash_name) = loop {
         iter += 1;
-        let trash_name = if iter != 1 {
+        dbg!(&iter);
+        let trash_name = if iter == 1 {
             Cow::Borrowed(trash_name)
         } else {
             let new_path = Path::new(&trash_name);
@@ -55,12 +56,15 @@ fn put_inner(trash: Rc<Trash>, input_path: &Path) -> crate::Result<TrashFile> {
 
             // If we can't build an extension preserving name, we just append the iteration number.
             Cow::Owned(ext_preverving_name.unwrap_or_else(|| {
+                log::trace!("name without ext");
                 let mut new = trash_name.to_owned();
                 new.push("_");
                 new.push(iter.to_string());
                 new
             }))
         };
+
+        log::trace!("Got name {:?}", trash_name);
 
         let mut trash_name_info = trash_name.clone().into_owned();
         trash_name_info.push(".trashinfo");
@@ -75,6 +79,7 @@ fn put_inner(trash: Rc<Trash>, input_path: &Path) -> crate::Result<TrashFile> {
                 Ok(v) => v,
                 Err(e) => match e.kind() {
                     std::io::ErrorKind::AlreadyExists => {
+                        log::trace!("Name not unique, trying next..");
                         continue;
                     }
 

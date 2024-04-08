@@ -7,6 +7,7 @@ use std::{
 };
 
 impl Trash {
+    /// Finds an anmin-created trashcan (`.Trash`) at the given location
     pub fn find_admin_trash(mount_root: PathBuf) -> crate::Result<Self> {
         let trash_dir = mount_root.join(".Trash");
         let trash_dir_meta = fs::symlink_metadata(&trash_dir)?;
@@ -38,7 +39,8 @@ impl Trash {
 
         Ok(Self {
             device: trash_dir_meta.dev(),
-            mount_root,
+            mount_root: mount_root.clone(),
+            based_on: mount_root,
             info_dir,
             files_dir,
             trash_type: TrashType::Admin,

@@ -1,10 +1,7 @@
-use crate::{list_trashes, trash, Trash, UnifiedTrash};
+use crate::{Trash, UnifiedTrash};
 use dircpy::copy_dir;
 use std::{
-    collections::HashSet,
-    fs, io,
-    path::{Path, PathBuf},
-    rc::Rc,
+    fs, path::PathBuf, rc::Rc
 };
 use tempdir::TempDir;
 
@@ -25,15 +22,66 @@ fn prepare_testdir() -> (TempDir, [PathBuf; 2], [Rc<Trash>; 2]) {
 }
 
 #[test]
-fn test_single_trash() {
-    let (tmpdir, dirs, trashes) = prepare_testdir();
+fn test_single_trash_put_list_restore() {
+    let (_tmpdir, dirs, trashes) = prepare_testdir();
+    let f1 = dirs[0].join("symlink");
+    let t1 = trashes[0].clone();
+
+    assert!(f1.exists());
+    t1.clone().put(&f1).unwrap();
+    assert!(!f1.exists());
+    
+    t1.list().unwrap().next().unwrap().unwrap().restore().unwrap();
+    assert!(f1.exists());
+}
+
+#[test]
+fn test_single_trash_put_multiple() {
+    let (_tmpdir, dirs, trashes) = prepare_testdir();
+    let f1 = dirs[0].join("Text File.txt");
+    let t1 = trashes[0].clone();
+    let mut f2 = f1.clone();
+    f2.set_file_name("file_copy");
+
+    dbg!(&f1);
+    dbg!(&f2);
+    fs::copy(&f1, &f2).unwrap();
+    assert!(f1.exists());
+    assert!(f2.exists());
+
+    t1.clone().put(&f1).unwrap();
+    assert!(!f1.exists());
+
+    fs::rename(&f2, &f1).unwrap();
+    assert!(f1.exists());
+    
+    t1.clone().put(&f1).unwrap();
+    
+    assert!(!f1.exists());
+    
+}
+
+
+
+#[test]
+fn test_single_trash_put_list_remove() {
+    let (_tmpdir, dirs, trashes) = prepare_testdir();
+    let f1 = dirs[0].join("symlink");
+    let t1 = trashes[0].clone();
+
+    assert!(f1.exists());
+    t1.clone().put(&f1).unwrap();
+    assert!(!f1.exists());
+    
+    t1.list().unwrap().next().unwrap().unwrap().remove().unwrap();
+    assert!(!f1.exists());
 }
 
 #[test]
 fn test_put_list_restore() {
     _ = microlog::try_init(log::LevelFilter::Trace);
 
-    let (tmpdir, dirs, trashes) = prepare_testdir();
+    let (_tmpdir, dirs, trashes) = prepare_testdir();
     let mut unified = UnifiedTrash::with_trashcans(trashes.into_iter());
 
     let f1 = dirs[0].join("symlink");
@@ -80,7 +128,7 @@ fn test_put_list_restore() {
 fn test_put_list_remove() {
     _ = microlog::try_init(log::LevelFilter::Trace);
 
-    let (tmpdir, dirs, trashes) = prepare_testdir();
+    let (_tmpdir, dirs, trashes) = prepare_testdir();
     let mut unified = UnifiedTrash::with_trashcans(trashes.iter().cloned());
 
     let f1 = dirs[0].join("symlink");

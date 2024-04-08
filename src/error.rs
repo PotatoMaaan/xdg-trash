@@ -74,4 +74,5 @@ pub enum Error {
     NoTrashFound,
 }
 
+/// A Result type predefined with the libraries error
 pub type Result<T> = core::result::Result<T, Error>;

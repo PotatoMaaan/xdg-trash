@@ -7,10 +7,12 @@ use std::{
 };
 
 impl Trash {
+    /// Find a user-created trashcan (`.Trash-{uid}`) at the given mount root
     pub fn find_user_trash(mount_root: PathBuf) -> crate::Result<Self> {
         Self::user_trash_inner(mount_root, false)
     }
 
+    /// Create a user-created trashcan (`.Trash-{uid}`) at the given mount root
     pub fn create_user_trash(mount_root: PathBuf) -> crate::Result<Self> {
         Self::user_trash_inner(mount_root, true)
     }
@@ -35,7 +37,8 @@ impl Trash {
 
         Ok(Self {
             device: trash_dir_meta.dev(),
-            mount_root,
+            mount_root: mount_root.clone(),
+            based_on: mount_root,
             info_dir,
             files_dir,
             trash_type: TrashType::User,

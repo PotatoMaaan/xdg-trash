@@ -8,10 +8,12 @@ mod home_trash;
 mod operations;
 mod user_trash;
 
+/// A single trashcan on the system
 #[derive(Debug)]
 pub struct Trash {
     device: u64,
     mount_root: PathBuf,
+    based_on: PathBuf,
     info_dir: PathBuf,
     files_dir: PathBuf,
     trash_type: TrashType,
@@ -48,23 +50,49 @@ impl Trash {
         self.trash_type
     }
 
+    /// Directory where `.trashinfo` files are stored
     pub fn info_dir(&self) -> &Path {
         &self.info_dir
     }
 
+    /// Directory where trashes files are stored
     pub fn files_dir(&self) -> &Path {
         &self.files_dir
     }
 
+    /// Directory to which relative paths from trashed files will be joined to.
+    /// 
+    /// # Example
+    /// `/mnt/disk1`: Trashed files in `/mnt/disk1/.Trash-1000` might have a relative
+    /// `original_path`, this will then get joined onto `/mnt/disk1`
+    /// to produce an absolute path. 
     pub fn mount_root(&self) -> &Path {
         &self.mount_root
     }
 
-    pub fn device(&self) -> u64 {
-        self.device
+    /// Like mount_root, but only contains the *public* part of the path.
+    /// This gets checked to test if a given file can be stored in this trashcan.
+    /// 
+    /// # Example
+    /// `/home/user/.local/share` -> `mount_root`, contains *trash specific* path
+    /// 
+    /// `/home/user`              -> `based_on`, only contains *public* section
+    /// 
+    /// Without this, `/home/user/Documents/some_file.txt` would not qualify for
+    /// the home trash, even if they are the same device
+    pub fn based_on(&self) -> &Path {
+        &self.based_on
     }
 
+    /// Defines if this trash should use relative paths in it's `.trashinfo` files.
+    /// This is the case for trashcans on, for example, removeable devices in order
+    /// to not have to depend on the device being mounted at the same location every time.
     pub fn use_relative_path(&self) -> bool {
         self.use_relative_path
+    }
+
+    /// The device id of the filesystem this trash resides on
+    pub fn device(&self) -> u64 {
+        self.device
     }
 }
