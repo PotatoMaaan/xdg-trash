@@ -7,15 +7,15 @@
 //! This crate is linux only for now, as it relies on reading `/proc/mounts` and uses some unix-only io extensions.
 //! 
 //! Trashcans can be located across multiple locations and physical devices, this is to avoid having to copy files
-//! across filesystem boundaries upon trashing a file. This crate proides a [`UnifiedTrash`], which combines all
+//! across filesystem boundaries upon trashing a file. This crate provides a [`UnifiedTrash`], which combines all
 //! trashcans across the system into a single interface.
 //! 
 //! ## Considerations
 //! When dealing with a users trashed files, it's probably a good idea to not always abort
-//! on the first error, but to instread be fault tolerant in order to still provide functionality,
+//! on the first error, but to instead be fault tolerant in order to still provide functionality,
 //! even if errors were encountered.
 //! 
-//! In practice this mostly means filetering out errors and or informing a user about a failure and
+//! In practice this mostly means filtering out errors and or informing a user about a failure and
 //! allowing them to choose further actions.
 //! 
 //! ## Conservative file handling
@@ -31,7 +31,7 @@
 //! 
 //! let mut trash = UnifiedTrash::new().unwrap();
 //! 
-//! _ = File::create("somefile.txt");
+//! _ = File::create("somefile.txt").unwrap();
 //! trash.put("somefile.txt").unwrap();
 //! 
 //! for file in trash.list() {
@@ -40,7 +40,7 @@
 //! }
 //! ```
 //! 
-//! ## Terminoligy
+//! ## Terminology
 //! | Name | Meaning |
 //! | --- | --- |
 //! | put | Put a file into the trash, moving it away from it's location (acts like it was deleted) |
