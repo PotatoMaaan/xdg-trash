@@ -28,7 +28,6 @@ fn put_inner(trash: Rc<Trash>, input_path: &Path) -> crate::Result<TrashFile> {
     let mut iter: u64 = 0;
     let (trashinfo, trash_name) = loop {
         iter += 1;
-        dbg!(&iter);
         let trash_name = if iter == 1 {
             Cow::Borrowed(trash_name)
         } else {

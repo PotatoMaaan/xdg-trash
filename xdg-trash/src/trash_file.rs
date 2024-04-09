@@ -6,6 +6,7 @@ use std::{
     rc::Rc,
 };
 
+/// A trashed file
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TrashFile {
     trash: Rc<Trash>,
@@ -27,6 +28,13 @@ impl TrashFile {
         }
     }
 
+    /// Constructs a trash file from the given .trashinfo file path in the given trash.
+    ///
+    /// # Errors
+    /// - no corresponding file exists in the trash
+    /// - the file does not have a .trashinfo extension
+    /// - the file does not have filestem
+    /// - other io errors
     pub fn from_trashinfo_path(info_file_path: &Path, trash: Rc<Trash>) -> crate::Result<Self> {
         let info_file = fs::read_to_string(info_file_path).map_err(|e| {
             crate::Error::InvalidTrashinfoFile(
@@ -74,6 +82,13 @@ impl TrashFile {
         } else {
             self.trashinfo.path.clone()
         }
+    }
+
+    /// The time this item was moved into the trash
+    ///
+    /// The spec says that this *should* be local time, but it can't be guaranteed.
+    pub fn deleted_at(&self) -> chrono::NaiveDateTime {
+        self.trashinfo.deleted_at
     }
 
     /// Full path to this entrys entry in the files directory

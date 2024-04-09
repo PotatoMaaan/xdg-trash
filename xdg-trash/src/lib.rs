@@ -8,6 +8,13 @@
 //! across filesystem boundaries upon trashing a file. This crate provides a [`UnifiedTrash`], which combines all
 //! trashcans across the system into a single interface.
 //!
+//! # Features
+//! - Put files into trash
+//! - List trashed files
+//! - Recover trashed files
+//! - Empty trash
+//! - "Streaming" using iterators (for trashcans and trashed files)
+//!
 //! ## Linux only
 //! This crate is linux only for now, as it relies on reading `/proc/mounts` and uses some unix-only io extensions.
 //! If you're looking for something cross-platform, you'll probably want [the trash crate](https://crates.io/crates/trash)
@@ -35,8 +42,7 @@
 //! trash.put("somefile.txt").unwrap();
 //!
 //! // list all trashed files
-//! for file in trash.list() {
-//!     let file = file.unwrap();
+//! for file in trash.list().filter_map(Result::ok) {
 //!     println!("Found in trash: {}", file.original_path().display());
 //! }
 //! ```
@@ -58,13 +64,13 @@ use std::{
     path::{Component, Path, PathBuf},
     rc::Rc,
 };
-use trash_file::TrashFile;
 
 #[cfg(test)]
 mod test;
 
 pub use error::*;
 pub use trash::{Trash, TrashType};
+pub use trash_file::TrashFile;
 
 mod error;
 mod trash;
