@@ -1,6 +1,10 @@
 use crate::{Trash, UnifiedTrash};
 use dircpy::copy_dir;
-use std::{fs, path::PathBuf, rc::Rc};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 use tempdir::TempDir;
 
 fn prepare_testdir() -> (TempDir, [PathBuf; 2], [Rc<Trash>; 2]) {
@@ -17,6 +21,39 @@ fn prepare_testdir() -> (TempDir, [PathBuf; 2], [Rc<Trash>; 2]) {
     let trash2 = Trash::create_user_trash(dir2.clone()).unwrap();
 
     (tmpdir, [dir1, dir2], [Rc::new(trash1), Rc::new(trash2)])
+}
+
+#[test]
+fn test_empty() {
+    let (_tmpdir, dirs, trashes) = prepare_testdir();
+    let mut unified = UnifiedTrash::with_trashcans(trashes.into_iter());
+
+    let files = [
+        "some dir",
+        ".invisible file (spooky)",
+        "symlink",
+        "Text File.txt",
+        "trash1.pdf",
+    ]
+    .into_iter()
+    .map(|x| [dirs[0].join(x), dirs[1].join(x)])
+    .flatten()
+    .collect::<Vec<_>>();
+
+    for file in &files {
+        unified.put(file).unwrap();
+    }
+
+    for file in &files {
+        let f = Path::new(file);
+        assert!(!f.exists())
+    }
+
+    assert_eq!(unified.list().collect::<Vec<_>>().len(), 10);
+
+    unified.empty().unwrap().for_each(|_| {});
+
+    assert_eq!(unified.list().collect::<Vec<_>>().len(), 0);
 }
 
 #[test]
