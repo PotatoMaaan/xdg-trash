@@ -7,7 +7,7 @@ use std::{
 };
 
 /// A trashed file
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TrashFile {
     trash: Rc<Trash>,
     trashinfo: TrashInfo,
@@ -114,6 +114,11 @@ impl TrashFile {
         }
         fs::remove_file(self.info_filepath())?;
         Ok(())
+    }
+
+    /// Returns a reference to the trash this item is in
+    pub fn trash(&self) -> &Trash {
+        &self.trash
     }
 
     /// Restores the file to it's original location, creating all parent

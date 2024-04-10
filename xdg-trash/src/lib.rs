@@ -201,13 +201,15 @@ impl UnifiedTrash {
     }
 }
 
-/// Returns an iterator over all trashes (not trashed files) available on the system (includes home trash)
+/// Returns an iterator over all trashes (not trashed files) available on the system.
+///
+/// The home trash is guaranteed to be the fist item yielded by this iterator.
 pub fn list_trashes() -> crate::Result<impl Iterator<Item = Rc<Trash>>> {
     let home_trash = Trash::find_or_create_home_trash()
         .map_err(|e| crate::Error::FailedToFindHomeTrash(Box::new(e)))?;
     let mounts_iter = list_mounts()?.into_iter().filter_map(find_any_trash_at);
 
-    Ok(mounts_iter.chain([home_trash]).map(Rc::new))
+    Ok([home_trash].into_iter().chain(mounts_iter).map(Rc::new))
 }
 
 fn find_any_trash_at(mount_root: PathBuf) -> Option<Trash> {

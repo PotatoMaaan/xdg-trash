@@ -7,14 +7,14 @@ use std::{
 };
 
 impl Trash {
-    /// Finds an anmin-created trashcan (`.Trash`) at the given location
+    /// Finds an admin-created trashcan (`.Trash`) at the given location
     pub fn find_admin_trash(mount_root: PathBuf) -> crate::Result<Self> {
         let trash_dir = mount_root.join(".Trash");
         let trash_dir_meta = fs::symlink_metadata(&trash_dir)?;
         let uid = unsafe { libc::getuid() };
         let uid = uid.to_string();
 
-        if trash_dir_meta.permissions().mode() & 0o1000 != 0 {
+        if trash_dir_meta.permissions().mode() & 0o1000 == 0 {
             log::warn!(
                 "Rejecting admin trash at {} because the sticky bit is not set",
                 trash_dir.display()

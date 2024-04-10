@@ -1,40 +1,71 @@
+use clap::Parser;
 use sha2::{Digest, Sha256};
-use std::{fmt::Write, os::unix::ffi::OsStrExt};
-use streaming_table::StreamingTable;
-use xdg_trash::{TrashFile, UnifiedTrash};
+use std::{env, fmt::Write, os::unix::ffi::OsStrExt, path::Path, process::ExitCode};
+use xdg_trash::TrashFile;
 
 mod cli;
+mod commands;
 mod streaming_table;
 
-fn main() {
+pub const ID_LEN: usize = 10;
+
+fn main() -> ExitCode {
     microlog::init(microlog::LevelFilter::Info);
-    let trash = UnifiedTrash::new().unwrap();
 
-    let mut table = StreamingTable::draw_header([
-        ("ID", Some(10)),
-        ("Deleted at", Some(19)),
-        ("Original Location", None),
-    ]);
+    let bin_name = env::args().next();
+    let bin_name = bin_name
+        .as_ref()
+        .and_then(|x| {
+            let p = Path::new(x);
+            p.file_name().map(|x| x.to_str())
+        })
+        .flatten();
 
-    let list = trash.list();
-
-    let list: Box<dyn Iterator<Item = TrashFile>> = if false {
-        let mut vec = list.collect::<Result<Vec<_>, _>>().unwrap();
-        vec.sort_by_key(|x| x.deleted_at());
-        Box::new(vec.into_iter())
-    } else {
-        Box::new(list.map(|x| x.unwrap()))
+    let result = match bin_name {
+        Some("trash") => {
+            let args = cli::PutArgs::parse();
+            commands::put(args)
+        }
+        Some("trash-put") => {
+            let args = cli::PutArgs::parse();
+            commands::put(args)
+        }
+        Some("trash-list") => {
+            let args = cli::ListArgs::parse();
+            commands::list(args)
+        }
+        Some("trash-empty") => {
+            let args = cli::EmptyArgs::parse();
+            commands::empty(args)
+        }
+        Some("trash-restore") => {
+            let args = cli::RestoreArgs::parse();
+            commands::restore(args)
+        }
+        Some("trash-rm") => {
+            let args = cli::RemoveArgs::parse();
+            commands::remove(args)
+        }
+        _ => {
+            log::debug!("Not called with known filename, acting as root command");
+            let root_args = cli::RootArgs::parse();
+            match root_args.subcommand {
+                cli::SubCmd::Put(args) => commands::put(args),
+                cli::SubCmd::List(args) => commands::list(args),
+                cli::SubCmd::Empty(args) => commands::empty(args),
+                cli::SubCmd::Restore(args) => commands::restore(args),
+                cli::SubCmd::Remove(args) => commands::remove(args),
+                cli::SubCmd::ListTrashes(args) => commands::list_trashes(args),
+            }
+        }
     };
 
-    for file in list {
-        table.draw_row([
-            &file.id(),
-            &file.deleted_at().to_string(),
-            &file.original_path().to_string_lossy(),
-        ]);
+    if let Err(e) = result {
+        log::error!("{}", e);
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
     }
-
-    table.draw_seperator();
 }
 
 pub trait IDable {
@@ -51,7 +82,7 @@ pub trait IDable {
 
         let hash = Sha256::digest(self.file_bytes());
         let hash = hash.as_slice();
-        encode_hex(hash).chars().take(10).collect()
+        encode_hex(hash).chars().take(ID_LEN).collect()
     }
 }
 

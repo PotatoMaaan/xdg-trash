@@ -61,7 +61,7 @@ pub struct PutArgs {
 #[derive(Debug, Clone, Parser)]
 pub struct ListArgs {
     /// Just output columnns seperated by \t (for easy parsing) (2>/dev/null to ignore erros / warnings)
-    #[arg(short, long)]
+    #[arg(long)]
     pub simple: bool,
 
     /// Also display the trash location where each file resides
@@ -72,9 +72,9 @@ pub struct ListArgs {
     #[arg(short, long)]
     pub reverse: bool,
 
-    /// Sort by this value
-    #[arg(long, value_enum, default_value_t = Sorting::OriginalPath)]
-    pub sort: Sorting,
+    /// Sort by this value (disables streaming output)
+    #[arg(short, long, value_enum)]
+    pub sort: Option<Sorting>,
 }
 
 /// List available trashcans on the system
@@ -118,6 +118,6 @@ pub struct RemoveArgs {
 #[derive(Debug, Clone, ValueEnum)]
 pub enum Sorting {
     Trash,
-    OriginalPath,
-    DeletedAt,
+    Path,
+    Date,
 }

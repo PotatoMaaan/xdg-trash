@@ -64,7 +64,7 @@ impl<const COLS: usize> StreamingTable<COLS> {
         println!();
     }
 
-    pub fn draw_row(&mut self, data: [&str; COLS]) {
+    pub fn draw_row(&self, data: [&str; COLS]) {
         for (i, col) in data.into_iter().enumerate() {
             if i != 0 {
                 print!(" ");

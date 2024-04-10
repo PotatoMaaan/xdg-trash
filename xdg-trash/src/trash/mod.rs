@@ -1,5 +1,5 @@
 use std::{
-    fmt::Debug,
+    fmt::{Debug, Display},
     path::{Path, PathBuf},
 };
 
@@ -16,7 +16,7 @@ mod user_trash;
 /// locations, however, this is only the case when these trashes are already part of the
 /// known trashes. The [`crate::list_trashes`] function does **NOT** find these trashes!
 /// It's most likely that other implementations will also not find any trashes at these locations.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Trash {
     device: u64,
     mount_root: PathBuf,
@@ -49,6 +49,12 @@ impl TrashType {
             TrashType::Admin => 2,
             TrashType::User => 1,
         }
+    }
+}
+
+impl Display for TrashType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
     }
 }
 
