@@ -13,6 +13,8 @@ pub struct TrashFile {
     trashinfo: TrashInfo,
     /// Filename WITHOUT .trashinfo ext
     raw_filename: OsString,
+    #[cfg(feature = "fs_extra")]
+    size: Option<u64>,
 }
 
 impl TrashFile {
@@ -25,6 +27,8 @@ impl TrashFile {
             trash,
             trashinfo,
             raw_filename,
+            #[cfg(feature = "fs_extra")]
+            size: None,
         }
     }
 
@@ -72,6 +76,8 @@ impl TrashFile {
             trash,
             trashinfo,
             raw_filename: without_trashinfo_ext,
+            #[cfg(feature = "fs_extra")]
+            size: None,
         })
     }
 
@@ -140,5 +146,15 @@ impl TrashFile {
         fs::rename(self.files_filepath(), &original_path)?;
         fs::remove_file(self.info_filepath())?;
         Ok(original_path)
+    }
+
+    /// Gets the size on disk in bytes for this item. This value is cached after the first call.
+    #[cfg(feature = "fs_extra")]
+    pub fn size(&self) -> Result<u64, fs_extra::error::Error> {
+        if let Some(size) = self.size {
+            Ok(size)
+        } else {
+            fs_extra::dir::get_size(self.files_filepath())
+        }
     }
 }

@@ -73,7 +73,7 @@ pub struct ListArgs {
     pub reverse: bool,
 
     /// Sort by this value (disables streaming output)
-    #[arg(short, long, value_enum)]
+    #[arg(long, value_enum)]
     pub sort: Option<Sorting>,
 }
 
@@ -120,4 +120,5 @@ pub enum Sorting {
     Trash,
     Path,
     Date,
+    Size,
 }

@@ -42,7 +42,7 @@ pub enum Error {
         errors: Vec<chrono::ParseError>,
     },
 
-    /** The trashinfo file at '{0}' is invalid */
+    /** The trashinfo file at '{0}' is invalid: {1} */
     InvalidTrashinfoFile(PathBuf, #[source] Box<Self>),
 
     /** The '{0}' does not have a file stem even though it should */
