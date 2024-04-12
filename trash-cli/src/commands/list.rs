@@ -6,10 +6,14 @@ use crate::{
 use humansize::DECIMAL;
 use xdg_trash::{TrashFile, UnifiedTrash};
 
+#[derive(Debug)]
+enum TableDisplay<A, B> {
+    NoTrash(A),
+    WithTrash(B),
+}
+
 pub fn list(args: ListArgs) -> anyhow::Result<()> {
     let trash = UnifiedTrash::new().unwrap();
-
-    let mut total_size = 0;
 
     let list = || -> Box<dyn Iterator<Item = TrashFile>> {
         let list = trash
@@ -19,10 +23,7 @@ pub fn list(args: ListArgs) -> anyhow::Result<()> {
                     log::error!("{}", e);
                 }
             })
-            .filter_map(Result::ok)
-            .inspect(|x| {
-                total_size += x.size().unwrap_or(0);
-            });
+            .filter_map(Result::ok);
 
         if let Some(sorting) = args.sort {
             let mut vec = list.collect::<Vec<_>>();
@@ -43,100 +44,99 @@ pub fn list(args: ListArgs) -> anyhow::Result<()> {
         }
     };
 
-    if args.trash_location {
-        let mut list = list();
-        let ft = list
-            .next()
-            .map(|x| x.trash().mount_root().as_os_str().len() + 5);
+    let (table, list) = match (args.trash_location, args.simple) {
+        (true, false) => {
+            let mut list = list();
+            let ft = list
+                .next()
+                .map(|x| x.trash().mount_root().as_os_str().len() + 5);
+            (
+                Some(TableDisplay::WithTrash(StreamingTable::draw_header([
+                    ("ID", Some(ID_LEN)),
+                    ("Deleted at", Some(19)),
+                    ("Size", Some(8)),
+                    ("Trash location", ft),
+                    ("Original Location", None),
+                ]))),
+                list,
+            )
+        }
+        (false, false) => {
+            let list = list();
+            (
+                Some(TableDisplay::NoTrash(StreamingTable::draw_header([
+                    ("ID", Some(ID_LEN)),
+                    ("Deleted at", Some(19)),
+                    ("Size", Some(8)),
+                    ("Original Location", None),
+                ]))),
+                list,
+            )
+        }
+        (_, true) => {
+            let list = list();
+            (None, list)
+        }
+    };
 
-        let mut table = if !args.simple {
-            println!();
-            Some(StreamingTable::draw_header([
-                ("ID", Some(ID_LEN)),
-                ("Deleted at", Some(19)),
-                ("Size", Some(10)),
-                ("Trash location", ft),
-                ("Original Location", None),
-            ]))
-        } else {
-            None
-        };
+    let mut total_size = if args.size { Some(0) } else { None };
 
-        for file in list {
-            let id = &file.id();
-            let del_at = &file.deleted_at().to_string();
-            let trash = &file.trash().mount_root();
-            let orig_path = &file.original_path();
-            let size = file.size();
+    for file in list {
+        let id = &file.id();
+        let del_at = &file.deleted_at().to_string();
+        let orig_path = &file.original_path();
+        let size = total_size.as_mut().and_then(|total_size| {
+            let s = file.size().ok();
+            if let Some(s) = s {
+                *total_size += s;
+            }
+            s
+        });
+        let size_human = size
+            .map(|x| humansize::format_size(x, DECIMAL))
+            .unwrap_or_else(|| "N/A".to_owned());
+        let trash = &file.trash().mount_root();
 
-            if let Some(ref mut table) = table {
-                let size = size.map(|x| humansize::format_size(x, DECIMAL));
+        match table {
+            Some(TableDisplay::NoTrash(ref table)) => {
                 table.draw_row([
                     id,
                     del_at,
-                    &size.unwrap_or_else(|_| "N/A".to_owned()),
+                    &size_human,
+                    orig_path.to_string_lossy().as_ref(),
+                ]);
+            }
+            Some(TableDisplay::WithTrash(ref table)) => {
+                table.draw_row([
+                    id,
+                    del_at,
+                    &size_human,
                     &trash.to_string_lossy(),
                     &orig_path.to_string_lossy(),
                 ]);
-            } else {
-                println!(
-                    "{}\t{}\t{}\t{}\t{}\t",
-                    id,
-                    del_at,
-                    &size
-                        .map(|x| x.to_string())
-                        .unwrap_or_else(|_| "N/A".to_owned()),
-                    trash.display(),
-                    orig_path.display()
-                );
             }
-        }
-    } else {
-        let mut table = if !args.simple {
-            println!();
-            Some(StreamingTable::draw_header([
-                ("ID", Some(ID_LEN)),
-                ("Deleted at", Some(19)),
-                ("Size", Some(10)),
-                ("Original Location", None),
-            ]))
-        } else {
-            None
-        };
-        let list = list();
-
-        for file in list {
-            let id = &file.id();
-            let del_at = &file.deleted_at().to_string();
-            let orig_path = &file.original_path();
-            let size = file.size();
-
-            if let Some(ref mut table) = table {
-                let size = size.map(|x| humansize::format_size(x, DECIMAL));
-                table.draw_row([
-                    id,
-                    del_at,
-                    &size.unwrap_or("N/A".to_owned()),
-                    &orig_path.to_string_lossy(),
-                ]);
-            } else {
+            None => {
                 println!(
-                    "{}\t{}\t{}\t,{}\t",
+                    "{}\t{}\t{}\t{}\t{}",
                     id,
                     del_at,
-                    size.map(|x| x.to_string()).unwrap_or("N/A".to_owned()),
+                    size.map(|x| x.to_string())
+                        .unwrap_or_else(|| "N/A".to_owned()),
+                    trash.display(),
                     orig_path.display()
                 );
             }
         }
     }
 
-    if !args.simple {
-        println!();
-        println!(
-            "Total size: {}",
-            humansize::format_size(total_size, DECIMAL)
-        );
+    if let Some(total_size) = total_size {
+        if !args.simple {
+            println!();
+            println!(
+                "Total size: {}",
+                humansize::format_size(total_size, DECIMAL)
+            );
+        }
     }
 
     Ok(())

@@ -69,8 +69,12 @@ pub struct ListArgs {
     pub trash_location: bool,
 
     /// Reverse the sorting
-    #[arg(short, long)]
+    #[arg(short, long, requires = "sort")]
     pub reverse: bool,
+
+    /// Calculate size for each file / directory in the trash (might take longer)
+    #[arg(short, long)]
+    pub size: bool,
 
     /// Sort by this value (disables streaming output)
     #[arg(long, value_enum)]

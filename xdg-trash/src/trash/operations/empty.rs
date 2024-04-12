@@ -18,12 +18,13 @@ fn empty_inner(trash: &Trash) -> crate::Result<impl Iterator<Item = crate::Resul
                 let path = entry.path();
                 entry.file_type().map(|x| {
                     if x.is_dir() {
-                        fs::remove_dir_all(path)
+                        fs::remove_dir_all(&path)
                     } else {
-                        fs::remove_file(path)
+                        fs::remove_file(&path)
                     }
                     .map(|_| entry.path())
                     .map_err(crate::Error::IoError)
+                    .map_err(|e| crate::Error::FailedToDeleteFile(path, Box::new(e)))
                 })
             })
         })

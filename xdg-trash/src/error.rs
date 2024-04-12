@@ -80,6 +80,9 @@ pub enum Error {
 
     /** A file already exists at '{0}' */
     AlreadyExists(PathBuf),
+
+    /** Failed to trash file '{0}': {1} */
+    FailedToDeleteFile(PathBuf, #[source] Box<Self>),
 }
 
 /// A Result type predefined with this librarys error
