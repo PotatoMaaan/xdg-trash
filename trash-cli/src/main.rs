@@ -1,13 +1,15 @@
 use clap::Parser;
 use sha2::{Digest, Sha256};
-use std::{env, fmt::Write, os::unix::ffi::OsStrExt, path::Path, process::ExitCode};
+use std::{
+    env, fmt::Write, io::stdin, os::unix::ffi::OsStrExt, path::Path, process::ExitCode,
+    str::FromStr,
+};
 use xdg_trash::TrashFile;
 
 mod cli;
 mod commands;
 mod streaming_table;
-
-pub const ID_LEN: usize = 10;
+mod user_input;
 
 fn main() -> ExitCode {
     microlog::init(microlog::LevelFilter::Info);
@@ -56,6 +58,7 @@ fn main() -> ExitCode {
                 cli::SubCmd::Restore(args) => commands::restore(args),
                 cli::SubCmd::Remove(args) => commands::remove(args),
                 cli::SubCmd::ListTrashes(args) => commands::list_trashes(args),
+                cli::SubCmd::Fix(args) => commands::fix(args),
             }
         }
     };
@@ -68,7 +71,9 @@ fn main() -> ExitCode {
     }
 }
 
-pub trait IDable {
+pub const ID_LEN: usize = 10;
+
+pub trait HashID {
     fn file_bytes(&self) -> Vec<u8>;
 
     fn id(&self) -> String {
@@ -86,7 +91,7 @@ pub trait IDable {
     }
 }
 
-impl IDable for TrashFile {
+impl HashID for TrashFile {
     fn file_bytes(&self) -> Vec<u8> {
         self.original_path().as_os_str().as_bytes().to_vec()
     }

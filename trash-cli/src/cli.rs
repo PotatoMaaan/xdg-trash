@@ -36,6 +36,7 @@ pub enum SubCmd {
     Empty(EmptyArgs),
     Restore(RestoreArgs),
     Remove(RemoveArgs),
+    Fix(FixArgs),
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -111,6 +112,10 @@ pub struct RestoreArgs {
     /// The ID of a file or it's original
     pub id_or_path: String,
 }
+
+/// Remove broken trashinfo files
+#[derive(Debug, Clone, Parser)]
+pub struct FixArgs {}
 
 /// Permanently remove a file from the trash
 #[derive(Debug, Clone, Parser)]

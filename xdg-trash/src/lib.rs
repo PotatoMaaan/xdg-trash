@@ -199,6 +199,14 @@ impl UnifiedTrash {
             .flat_map(|trash| trash.empty())
             .flatten())
     }
+
+    /// Removes broken trashinfo files from all *known* trashcans
+    pub fn fix(&self) -> crate::Result<usize> {
+        self.known_trashes
+            .iter()
+            .map(|trash| trash.clone().fix())
+            .try_fold(0, |state, y| y.and_then(|x| Ok(state + x)))
+    }
 }
 
 /// Returns an iterator over all trashes (not trashed files) available on the system.

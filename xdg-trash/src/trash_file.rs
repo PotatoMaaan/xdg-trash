@@ -7,7 +7,7 @@ use std::{
 };
 
 /// A trashed file
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct TrashFile {
     trash: Rc<Trash>,
     trashinfo: TrashInfo,
@@ -110,16 +110,11 @@ impl TrashFile {
     }
 
     /// Permanently remove this file from the trash
-    pub fn remove(self) -> crate::Result<()> {
-        let file = self.files_filepath();
-        let file_meta = fs::symlink_metadata(&file)?;
-        if file_meta.is_dir() {
-            fs::remove_dir_all(&file)?;
-        } else {
-            fs::remove_file(file)?;
+    pub fn remove(self) -> Result<(), (Self, crate::Error)> {
+        match remove_inner(&self) {
+            Ok(_) => Ok(()),
+            Err(e) => Err((self, e)),
         }
-        fs::remove_file(self.info_filepath())?;
-        Ok(())
     }
 
     /// Returns a reference to the trash this item is in
@@ -131,21 +126,11 @@ impl TrashFile {
     /// directories of the file if they don't exist anymore.
     ///
     /// Returns the location the file was restored to.
-    pub fn restore(self, overwrite_existing: bool) -> crate::Result<PathBuf> {
-        let original_path = self.original_path();
-
-        if !overwrite_existing && fs::symlink_metadata(&original_path).is_ok() {
-            return Err(crate::Error::AlreadyExists(original_path));
+    pub fn restore(self, overwrite_existing: bool) -> Result<PathBuf, (Self, crate::Error)> {
+        match restore_inner(&self, overwrite_existing) {
+            Ok(v) => Ok(v),
+            Err(e) => Err((self, e)),
         }
-
-        if let Some(parent) = original_path.parent() {
-            assert!(parent.is_absolute());
-            fs::create_dir_all(parent)?;
-        }
-
-        fs::rename(self.files_filepath(), &original_path)?;
-        fs::remove_file(self.info_filepath())?;
-        Ok(original_path)
     }
 
     /// Gets the size on disk in bytes for this item. This value is cached after the first call.
@@ -157,4 +142,32 @@ impl TrashFile {
             fs_extra::dir::get_size(self.files_filepath())
         }
     }
+}
+
+fn remove_inner(file: &TrashFile) -> crate::Result<()> {
+    let files_file = file.files_filepath();
+    let file_meta = fs::symlink_metadata(&files_file)?;
+    if file_meta.is_dir() {
+        fs::remove_dir_all(&files_file)?;
+    } else {
+        fs::remove_file(files_file)?;
+    }
+    Ok(fs::remove_file(file.info_filepath())?)
+}
+
+fn restore_inner(file: &TrashFile, overwrite_existing: bool) -> crate::Result<PathBuf> {
+    let original_path = file.original_path();
+
+    if !overwrite_existing && fs::symlink_metadata(&original_path).is_ok() {
+        return Err(crate::Error::AlreadyExists(original_path));
+    }
+
+    if let Some(parent) = original_path.parent() {
+        assert!(parent.is_absolute());
+        fs::create_dir_all(parent)?;
+    }
+
+    fs::rename(file.files_filepath(), &original_path)?;
+    fs::remove_file(file.info_filepath())?;
+    Ok(original_path)
 }

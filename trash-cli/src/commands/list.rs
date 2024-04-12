@@ -1,7 +1,7 @@
 use crate::{
     cli::{ListArgs, Sorting},
     streaming_table::StreamingTable,
-    IDable, ID_LEN,
+    HashID, ID_LEN,
 };
 use humansize::DECIMAL;
 use xdg_trash::{TrashFile, UnifiedTrash};
@@ -31,6 +31,7 @@ pub fn list(args: ListArgs) -> anyhow::Result<()> {
                 Sorting::Trash => a.trash().mount_root().cmp(b.trash().mount_root()),
                 Sorting::Path => a.original_path().cmp(&b.original_path()),
                 Sorting::Date => a.deleted_at().cmp(&b.deleted_at()),
+                // TODO? Replacing the size with zero upon failure might not be the best option here
                 Sorting::Size => a.size().unwrap_or(0).cmp(&b.size().unwrap_or(0)),
             });
 
