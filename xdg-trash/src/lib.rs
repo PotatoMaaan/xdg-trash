@@ -27,6 +27,11 @@
 //! In practice this mostly means filtering out errors and or informing a user about a failure and
 //! allowing them to choose further actions.
 //!
+//! ## Crate Features
+//! | Feature | Description |
+//! | --- | --- |
+//! | fs_extra | adds `.size()` methods to [`TrashFile`] |
+//!
 //! # Example
 //! This example shows how to trash a file and list all trashed files
 //! ```

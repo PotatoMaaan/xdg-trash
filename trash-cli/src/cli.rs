@@ -1,3 +1,4 @@
+use chrono::{NaiveDate, NaiveDateTime};
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
@@ -93,17 +94,21 @@ pub struct ListTrashesArgs {
 /// Empty the trash
 #[derive(Debug, Clone, Parser)]
 pub struct EmptyArgs {
-    /// Only delete files that were trashed before the specified date (format example: 2024-01-24)
-    #[arg(short = 'b', long)]
-    pub before_date: Option<chrono::NaiveDate>,
-
-    /// Same as before-date but including a time (format example: 2024-01-24T16:27:00)
-    #[arg(short = 'B', long)]
-    pub before_datetime: Option<chrono::NaiveDateTime>,
-
     /// Dry run. Don't delete anything, just print.
     #[arg(short, long)]
     pub dry_run: bool,
+
+    /// Delete everything before the specified date (example: 2024-04-10T14:30:00)
+    #[arg(short, long, conflicts_with = "after")]
+    pub before: Option<NaiveDateTime>,
+
+    /// Delete everything after the specified date (example: 2022-07-16T12:20:24)
+    #[arg(short, long, conflicts_with = "before")]
+    pub after: Option<NaiveDateTime>,
+
+    /// Keep all files more recent than the specified date
+    #[arg(short, long, conflicts_with_all = ["before", "after"])]
+    pub keep: Option<u64>,
 }
 
 /// Restore a file from the trash

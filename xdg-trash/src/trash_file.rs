@@ -133,7 +133,10 @@ impl TrashFile {
         }
     }
 
-    /// Gets the size on disk in bytes for this item. This value is cached after the first call.
+    /// Gets the size on disk in bytes for this item.
+    ///
+    /// # Note
+    /// This value is cached after the first call.
     #[cfg(feature = "fs_extra")]
     pub fn size(&self) -> Result<u64, fs_extra::error::Error> {
         if let Some(size) = self.size {
@@ -141,6 +144,12 @@ impl TrashFile {
         } else {
             fs_extra::dir::get_size(self.files_filepath())
         }
+    }
+
+    /// Same as size, but *uncached*
+    #[cfg(feature = "fs_extra")]
+    pub fn size_uncached(&self) -> Result<u64, fs_extra::error::Error> {
+        fs_extra::dir::get_size(self.files_filepath())
     }
 }
 
