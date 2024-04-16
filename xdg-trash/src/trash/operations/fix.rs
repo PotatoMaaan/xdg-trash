@@ -12,7 +12,7 @@ impl Trash {
         for tfile in info_files {
             let tfile = tfile?;
             let tfile = tfile.path();
-            if let Err(_) = TrashFile::from_trashinfo_path(&tfile, self.clone()) {
+            if TrashFile::from_trashinfo_path(&tfile, self.clone()).is_err() {
                 log::info!("Removing: {}", tfile.display());
                 fs::remove_file(&tfile)?;
                 total += 1;
