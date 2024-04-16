@@ -210,7 +210,7 @@ impl UnifiedTrash {
         self.known_trashes
             .iter()
             .map(|trash| trash.clone().fix())
-            .try_fold(0, |state, y| y.and_then(|x| Ok(state + x)))
+            .try_fold(0, |state, y| y.map(|x| state + x))
     }
 }
 

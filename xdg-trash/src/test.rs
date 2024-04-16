@@ -36,8 +36,7 @@ fn test_empty() {
         "trash1.pdf",
     ]
     .into_iter()
-    .map(|x| [dirs[0].join(x), dirs[1].join(x)])
-    .flatten()
+    .flat_map(|x| [dirs[0].join(x), dirs[1].join(x)])
     .collect::<Vec<_>>();
 
     for file in &files {
