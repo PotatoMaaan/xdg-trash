@@ -53,12 +53,10 @@ impl<const COLS: usize> StreamingTable<COLS> {
 
             if i + 1 != COLS {
                 print!("{}", "+".bright_black());
+            } else if let Some(size_hint) = self.padding[i] {
+                print!("{}", "-".repeat(size_hint).bright_black());
             } else {
-                if let Some(size_hint) = self.padding[i] {
-                    print!("{}", "-".repeat(size_hint).bright_black());
-                } else {
-                    print!("{}", "-".repeat(5).bright_black());
-                }
+                print!("{}", "-".repeat(5).bright_black());
             }
         }
         println!();

@@ -1,9 +1,6 @@
 use clap::Parser;
 use sha2::{Digest, Sha256};
-use std::{
-    env, fmt::Write, io::stdin, os::unix::ffi::OsStrExt, path::Path, process::ExitCode,
-    str::FromStr,
-};
+use std::{env, fmt::Write, os::unix::ffi::OsStrExt, path::Path, process::ExitCode};
 use xdg_trash::TrashFile;
 
 mod cli;
