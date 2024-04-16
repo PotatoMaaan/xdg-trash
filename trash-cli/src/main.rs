@@ -6,7 +6,6 @@ use xdg_trash::TrashFile;
 mod cli;
 mod commands;
 mod streaming_table;
-mod user_input;
 
 fn main() -> ExitCode {
     microlog::init(microlog::LevelFilter::Info);

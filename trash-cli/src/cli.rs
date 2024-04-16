@@ -79,7 +79,7 @@ pub struct ListArgs {
     pub size: bool,
 
     /// Sort by this value (disables streaming output)
-    #[arg(long, value_enum)]
+    #[arg(short = 'S', long, value_enum)]
     pub sort: Option<Sorting>,
 }
 

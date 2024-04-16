@@ -12,8 +12,13 @@ enum TableDisplay<A, B> {
     WithTrash(B),
 }
 
-pub fn list(args: ListArgs) -> anyhow::Result<()> {
+pub fn list(mut args: ListArgs) -> anyhow::Result<()> {
     let trash = UnifiedTrash::new().unwrap();
+
+    // I'd like for this to be done in clap, but I couldn't figure out a way to do it entirely in clap :(
+    if let Some(Sorting::Size) = args.sort {
+        args.size = true;
+    }
 
     let list = || -> Box<dyn Iterator<Item = TrashFile>> {
         let list = trash

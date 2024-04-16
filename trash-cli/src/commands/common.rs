@@ -1,9 +1,11 @@
-use crate::streaming_table::StreamingTable;
+use crate::{streaming_table::StreamingTable, HashID};
+use anyhow::Context;
 use std::{
     io::{stdin, stdout, Write},
+    path::Path,
     str::FromStr,
 };
-use xdg_trash::TrashFile;
+use xdg_trash::{TrashFile, UnifiedTrash};
 
 pub fn choose(mut options: Vec<TrashFile>) -> TrashFile {
     if options.len() == 1 {
@@ -65,10 +67,31 @@ pub fn ask_yes_no(prompt: &str, default: bool) -> bool {
     }
 }
 
-fn read_line() -> Option<String> {
+pub fn read_line() -> Option<String> {
     stdin().lines().next().and_then(Result::ok)
 }
 
-fn read_generic<T: FromStr>() -> Option<T> {
+pub fn read_generic<T: FromStr>() -> Option<T> {
     read_line().and_then(|x| x.parse().ok())
+}
+
+pub fn list_trashes_matching_status(id_or_path: &str) -> anyhow::Result<Vec<TrashFile>> {
+    let trash = UnifiedTrash::new().context("Failed to init trash")?;
+    print!("Listing files, this might take a moment.");
+    stdout().flush().unwrap();
+
+    let matches = trash
+        .list()
+        .inspect(|x| {
+            log::debug!("Listing: {x:#?}");
+            print!(".");
+            stdout().flush().unwrap();
+        })
+        .filter_map(Result::ok)
+        .filter(|x| x.id() == id_or_path || x.original_path() == Path::new(&id_or_path))
+        .collect::<Vec<_>>();
+    println!();
+    println!();
+
+    Ok(matches)
 }
