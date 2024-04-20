@@ -3,6 +3,7 @@ use crate::{
     streaming_table::StreamingTable,
     HashID, ID_LEN,
 };
+use anyhow::Context;
 use humansize::DECIMAL;
 use xdg_trash::{TrashFile, UnifiedTrash};
 
@@ -20,7 +21,7 @@ pub fn list(mut args: ListArgs) -> anyhow::Result<()> {
         args.size = true;
     }
 
-    let list = || -> Box<dyn Iterator<Item = TrashFile>> {
+    let list: Box<dyn Iterator<Item = TrashFile>> = {
         let list = trash
             .list()
             .inspect(|x| {
@@ -36,7 +37,7 @@ pub fn list(mut args: ListArgs) -> anyhow::Result<()> {
                 Sorting::Trash => a.trash().mount_root().cmp(b.trash().mount_root()),
                 Sorting::Path => a.original_path().cmp(&b.original_path()),
                 Sorting::Date => a.deleted_at().cmp(&b.deleted_at()),
-                // TODO? Replacing the size with zero upon failure might not be the best option here
+                // TODO Replacing the size with zero upon failure might not be the best option here
                 Sorting::Size => a.size().unwrap_or(0).cmp(&b.size().unwrap_or(0)),
             });
 
@@ -50,39 +51,21 @@ pub fn list(mut args: ListArgs) -> anyhow::Result<()> {
         }
     };
 
-    let (table, list) = match (args.trash_location, args.simple) {
-        (true, false) => {
-            let mut list = list();
-            let ft = list
-                .next()
-                .map(|x| x.trash().mount_root().as_os_str().len() + 5);
-            (
-                Some(TableDisplay::WithTrash(StreamingTable::draw_header([
-                    ("ID", Some(ID_LEN)),
-                    ("Deleted at", Some(19)),
-                    ("Size", Some(8)),
-                    ("Trash location", ft),
-                    ("Original Location", None),
-                ]))),
-                list,
-            )
-        }
-        (false, false) => {
-            let list = list();
-            (
-                Some(TableDisplay::NoTrash(StreamingTable::draw_header([
-                    ("ID", Some(ID_LEN)),
-                    ("Deleted at", Some(19)),
-                    ("Size", Some(8)),
-                    ("Original Location", None),
-                ]))),
-                list,
-            )
-        }
-        (_, true) => {
-            let list = list();
-            (None, list)
-        }
+    let table = match (args.trash_location, args.simple) {
+        (true, false) => Some(TableDisplay::WithTrash(StreamingTable::draw_header([
+            ("ID", Some(ID_LEN)),
+            ("Deleted at", Some(19)),
+            ("Size", Some(8)),
+            ("Trash location", Some(40)),
+            ("Original Location", None),
+        ]))),
+        (false, false) => Some(TableDisplay::NoTrash(StreamingTable::draw_header([
+            ("ID", Some(ID_LEN)),
+            ("Deleted at", Some(19)),
+            ("Size", Some(8)),
+            ("Original Location", None),
+        ]))),
+        (_, true) => None,
     };
 
     let mut total_size = if args.size { Some(0) } else { None };
@@ -98,10 +81,13 @@ pub fn list(mut args: ListArgs) -> anyhow::Result<()> {
             }
             s
         });
-        let size_human = size
-            .map(|x| humansize::format_size(x, DECIMAL))
-            .unwrap_or_else(|| "N/A".to_owned());
-        let trash = &file.trash().mount_root();
+        let size_human =
+            size.map_or_else(|| "N/A".to_owned(), |x| humansize::format_size(x, DECIMAL));
+        let trash = &file
+            .trash()
+            .info_dir()
+            .parent()
+            .context("Info dir has no parent")?;
 
         match table {
             Some(TableDisplay::NoTrash(ref table)) => {
@@ -126,8 +112,7 @@ pub fn list(mut args: ListArgs) -> anyhow::Result<()> {
                     "{}\t{}\t{}\t{}\t{}",
                     id,
                     del_at,
-                    size.map(|x| x.to_string())
-                        .unwrap_or_else(|| "N/A".to_owned()),
+                    size.map_or_else(|| "N/A".to_owned(), |x| x.to_string()),
                     trash.display(),
                     orig_path.display()
                 );

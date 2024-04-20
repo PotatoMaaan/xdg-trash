@@ -94,9 +94,9 @@ fn put_inner(trash: Rc<Trash>, input_path: &Path) -> crate::Result<TrashFile> {
                     input_path
                         .strip_prefix(&trash.mount_root)
                         .map_err(|_| crate::Error::InputNotChildOfTrashMount)
-                        .map(|x| x.to_owned())?
+                        .map(ToOwned::to_owned)?
                 } else {
-                    input_path.to_owned()
+                    input_path.clone()
                 },
                 deleted_at: Local::now().naive_local(),
             };

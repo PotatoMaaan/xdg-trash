@@ -30,7 +30,7 @@
 //! ## Crate Features
 //! | Feature | Description |
 //! | --- | --- |
-//! | fs_extra | adds `.size()` methods to [`TrashFile`] |
+//! | `fs_extra` | adds `.size()` methods to [`TrashFile`] |
 //!
 //! # Example
 //! This example shows how to trash a file and list all trashed files
@@ -250,7 +250,7 @@ fn list_mounts() -> crate::Result<Vec<PathBuf>> {
         .collect()
 }
 
-/// like fs::canonicalize but doesn't follow symlinks and doesn't check if the file exists.
+/// like [`fs::canonicalize`] but doesn't follow symlinks and doesn't check if the file exists.
 ///
 /// Credit: <https://internals.rust-lang.org/t/path-to-lexical-absolute/14940>
 fn lexical_absolute(p: &Path) -> std::io::Result<PathBuf> {

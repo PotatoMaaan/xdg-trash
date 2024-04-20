@@ -18,7 +18,7 @@ use std::path::PathBuf;
 /// use one of these commands:{n}
 /// trash-put -- -foo{n}
 /// trash-put ./-foo{n}{n}
-/// You can adjust log verbosity by adjusting the RUST_LOG env var to any of the following:{n}
+/// You can adjust log verbosity by adjusting the `RUST_LOG` env var to any of the following:{n}
 ///     - trace{n}
 ///     - debug{n}
 ///     - info{n}

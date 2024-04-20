@@ -82,6 +82,7 @@ impl TrashFile {
     }
 
     /// The location this entry will be moved to when restored
+    #[must_use]
     pub fn original_path(&self) -> PathBuf {
         if self.trashinfo.path.is_relative() {
             self.trash.mount_root().join(&self.trashinfo.path)
@@ -93,16 +94,19 @@ impl TrashFile {
     /// The time this item was moved into the trash
     ///
     /// The spec says that this *should* be local time, but it can't be guaranteed.
+    #[must_use]
     pub fn deleted_at(&self) -> chrono::NaiveDateTime {
         self.trashinfo.deleted_at
     }
 
     /// Full path to this entrys entry in the files directory
+    #[must_use]
     pub fn files_filepath(&self) -> PathBuf {
         self.trash.files_dir().join(&self.raw_filename)
     }
 
     /// Full path to this trash entrys .trashinfo file
+    #[must_use]
     pub fn info_filepath(&self) -> PathBuf {
         let mut base_filename = self.raw_filename.clone();
         base_filename.push(".trashinfo");
@@ -112,12 +116,13 @@ impl TrashFile {
     /// Permanently remove this file from the trash
     pub fn remove(self) -> Result<(), (Self, crate::Error)> {
         match remove_inner(&self) {
-            Ok(_) => Ok(()),
+            Ok(()) => Ok(()),
             Err(e) => Err((self, e)),
         }
     }
 
     /// Returns a reference to the trash this item is in
+    #[must_use]
     pub fn trash(&self) -> &Trash {
         &self.trash
     }

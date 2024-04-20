@@ -37,13 +37,10 @@ pub fn choose(mut options: Vec<TrashFile>) -> TrashFile {
         };
 
         let final_index = choice.wrapping_sub(1);
-        match options.get(final_index) {
-            Some(_) => break options.remove(final_index),
-            None => {
-                log::error!("Number out of bounds, please pick a number in the range.\n");
-                continue;
-            }
+        if options.get(final_index).is_some() {
+            break options.remove(final_index);
         }
+        log::error!("Number out of bounds, please pick a number in the range.\n");
     }
 }
 

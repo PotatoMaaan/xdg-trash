@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::Context;
 
-pub fn remove(args: RemoveArgs) -> anyhow::Result<()> {
+pub fn remove(args: &RemoveArgs) -> anyhow::Result<()> {
     let matches = list_trashes_matching_status(&args.id_or_path)?;
 
     if matches.is_empty() {

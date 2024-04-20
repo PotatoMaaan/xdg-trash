@@ -1,7 +1,7 @@
 use crate::{cli::ListTrashesArgs, streaming_table::StreamingTable};
 use anyhow::Context;
 
-pub fn list_trashes(args: ListTrashesArgs) -> anyhow::Result<()> {
+pub fn list_trashes(args: &ListTrashesArgs) -> anyhow::Result<()> {
     let trashes = xdg_trash::list_trashes().context("Failed to list trashes")?;
 
     let table = if !args.simple {

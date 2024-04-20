@@ -20,11 +20,7 @@ fn main() -> ExitCode {
         .flatten();
 
     let result = match bin_name {
-        Some("trash") => {
-            let args = cli::PutArgs::parse();
-            commands::put(args)
-        }
-        Some("trash-put") => {
+        Some("trash" | "trash-put") => {
             let args = cli::PutArgs::parse();
             commands::put(args)
         }
@@ -34,15 +30,15 @@ fn main() -> ExitCode {
         }
         Some("trash-empty") => {
             let args = cli::EmptyArgs::parse();
-            commands::empty(args)
+            commands::empty(&args)
         }
         Some("trash-restore") => {
             let args = cli::RestoreArgs::parse();
-            commands::restore(args)
+            commands::restore(&args)
         }
         Some("trash-rm") => {
             let args = cli::RemoveArgs::parse();
-            commands::remove(args)
+            commands::remove(&args)
         }
         _ => {
             log::debug!("Not called with known filename, acting as root command");
@@ -50,11 +46,11 @@ fn main() -> ExitCode {
             match root_args.subcommand {
                 cli::SubCmd::Put(args) => commands::put(args),
                 cli::SubCmd::List(args) => commands::list(args),
-                cli::SubCmd::Empty(args) => commands::empty(args),
-                cli::SubCmd::Restore(args) => commands::restore(args),
-                cli::SubCmd::Remove(args) => commands::remove(args),
-                cli::SubCmd::ListTrashes(args) => commands::list_trashes(args),
-                cli::SubCmd::Fix(args) => commands::fix(args),
+                cli::SubCmd::Empty(args) => commands::empty(&args),
+                cli::SubCmd::Restore(args) => commands::restore(&args),
+                cli::SubCmd::Remove(args) => commands::remove(&args),
+                cli::SubCmd::ListTrashes(args) => commands::list_trashes(&args),
+                cli::SubCmd::Fix(args) => commands::fix(&args),
             }
         }
     };

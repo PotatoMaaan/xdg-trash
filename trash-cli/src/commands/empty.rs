@@ -3,7 +3,7 @@ use anyhow::Context;
 use chrono::{Days, Local};
 use xdg_trash::UnifiedTrash;
 
-pub fn empty(args: EmptyArgs) -> anyhow::Result<()> {
+pub fn empty(args: &EmptyArgs) -> anyhow::Result<()> {
     let trash = UnifiedTrash::new().context("Failed to init trash")?;
 
     for file in trash.list().filter_map(Result::ok).filter(|file| {

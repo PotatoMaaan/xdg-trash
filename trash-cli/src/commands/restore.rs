@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::Context;
 
-pub fn restore(args: RestoreArgs) -> anyhow::Result<()> {
+pub fn restore(args: &RestoreArgs) -> anyhow::Result<()> {
     let matches = list_trashes_matching_status(&args.id_or_path)?;
 
     if matches.is_empty() {
@@ -31,8 +31,6 @@ pub fn restore(args: RestoreArgs) -> anyhow::Result<()> {
             _ => anyhow::bail!("Failed to restore file: {e}"),
         }
     }
-
-    println!("Restored {}", orig_path.display());
 
     Ok(())
 }

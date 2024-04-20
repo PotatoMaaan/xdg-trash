@@ -11,7 +11,7 @@ mod user_trash;
 /// A single trashcan on the system.
 ///
 /// ## Note about `mount_root`
-/// It is strongly advised to only specify paths as mount_root that are actually at the
+/// It is strongly advised to only specify paths as `mount_root` that are actually at the
 /// root of a mounted filesystem. This implementation does support trashes at non-fs-root
 /// locations, however, this is only the case when these trashes are already part of the
 /// known trashes. The [`crate::list_trashes`] function does **NOT** find these trashes!
@@ -43,6 +43,7 @@ pub enum TrashType {
 
 impl TrashType {
     /// The priority of one trashcan over another, if multiple ones qualify for a file
+    #[must_use]
     pub fn priority(&self) -> i32 {
         match self {
             TrashType::Home => 3,
@@ -60,16 +61,19 @@ impl Display for TrashType {
 
 impl Trash {
     /// The type of this trashcan
+    #[must_use]
     pub fn trash_type(&self) -> TrashType {
         self.trash_type
     }
 
     /// Directory where `.trashinfo` files are stored
+    #[must_use]
     pub fn info_dir(&self) -> &Path {
         &self.info_dir
     }
 
     /// Directory where trashes files are stored
+    #[must_use]
     pub fn files_dir(&self) -> &Path {
         &self.files_dir
     }
@@ -80,11 +84,12 @@ impl Trash {
     /// `/mnt/disk1`: Trashed files in `/mnt/disk1/.Trash-1000` might have a relative
     /// `original_path`, this will then get joined onto `/mnt/disk1`
     /// to produce an absolute path.
+    #[must_use]
     pub fn mount_root(&self) -> &Path {
         &self.mount_root
     }
 
-    /// Like mount_root, but only contains the *public* part of the path.
+    /// Like `mount_root`, but only contains the *public* part of the path.
     /// This gets checked to test if a given file can be stored in this trashcan.
     ///
     /// # Example
@@ -94,6 +99,7 @@ impl Trash {
     ///
     /// Without this, `/home/user/Documents/some_file.txt` would not qualify for
     /// the home trash, even if they are the same device
+    #[must_use]
     pub fn based_on(&self) -> &Path {
         &self.based_on
     }
@@ -101,11 +107,13 @@ impl Trash {
     /// Defines if this trash should use relative paths in it's `.trashinfo` files.
     /// This is the case for trashcans on, for example, removeable devices in order
     /// to not have to depend on the device being mounted at the same location every time.
+    #[must_use]
     pub fn use_relative_path(&self) -> bool {
         self.use_relative_path
     }
 
     /// The device id of the filesystem this trash resides on
+    #[must_use]
     pub fn device(&self) -> u64 {
         self.device
     }

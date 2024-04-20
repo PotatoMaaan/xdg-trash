@@ -22,7 +22,7 @@ fn empty_inner(trash: &Trash) -> crate::Result<impl Iterator<Item = crate::Resul
                     } else {
                         fs::remove_file(&path)
                     }
-                    .map(|_| entry.path())
+                    .map(|()| entry.path())
                     .map_err(crate::Error::IoError)
                     .map_err(|e| crate::Error::FailedToDeleteFile(path, Box::new(e)))
                 })
